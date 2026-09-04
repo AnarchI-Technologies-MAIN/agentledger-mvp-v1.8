@@ -21,6 +21,7 @@ from apps.catalog.models import Product, Vendor
 from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
+from apps.policies.models import OrganizationRule
 
 pytestmark = [
     pytest.mark.rls,
@@ -83,6 +84,7 @@ def isolation_fixture():
     yield fixture
     with connections["default"].cursor() as cursor:
         cursor.execute("TRUNCATE TABLE assessment_snapshots")
+    OrganizationRule.objects.all().delete()
     InventoryItem.objects.all().delete()
     OrganizationMember.objects.all().delete()
     Organization.objects.all().delete()
@@ -176,6 +178,7 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             ("inventory_import_batches", True, True, True),
             ("inventory_import_rows", True, True, True),
             ("inventory_items", True, True, True),
+            ("organization_rules", True, True, True),
             ("organizations_organizationmember", True, True, True),
         ]
         cursor.execute(
@@ -250,6 +253,66 @@ def test_assessment_snapshots_are_tenant_isolated_and_append_only(isolation_fixt
                 input_sha256=canonical_sha256(forbidden),
                 result_sha256=canonical_sha256(forbidden),
             )
+    assert_insufficient_privilege(captured)
+
+
+def test_organization_rules_are_tenant_isolated_for_app_and_worker(
+    isolation_fixture,
+):
+    fixture = isolation_fixture
+    definition = {
+        "all": [
+            {"field": "data_categories", "operator": "contains", "value": "payroll"}
+        ],
+        "effects": [{"type": "severity_floor", "value": "HIGH"}],
+    }
+    rule_a = OrganizationRule.objects.create(
+        organization_id=fixture.organization_a_id,
+        name="Rule A",
+        definition=definition,
+        result_on_match=OrganizationRule.Result.FAIL,
+        severity=OrganizationRule.Severity.HIGH,
+        explanation="Firm A explanation.",
+        remediation="Firm A next step.",
+        created_by_id=fixture.user_a_id,
+    )
+    OrganizationRule.objects.create(
+        organization_id=fixture.organization_b_id,
+        name="Rule B",
+        definition=definition,
+        result_on_match=OrganizationRule.Result.FAIL,
+        severity=OrganizationRule.Severity.HIGH,
+        explanation="Firm B explanation.",
+        remediation="Firm B next step.",
+        created_by_id=fixture.user_b_id,
+    )
+
+    for using in ("app_runtime", "worker_runtime"):
+        with tenant_transaction(fixture.organization_a_id, using=using):
+            visible_ids = set(
+                OrganizationRule.objects.using(using).values_list("id", flat=True)
+            )
+        assert visible_ids == {rule_a.id}
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            OrganizationRule.objects.using("app_runtime").create(
+                organization_id=fixture.organization_b_id,
+                name="Forbidden Rule",
+                definition=definition,
+                result_on_match=OrganizationRule.Result.FAIL,
+                severity=OrganizationRule.Severity.HIGH,
+                explanation="Forbidden.",
+                remediation="Forbidden.",
+                created_by_id=fixture.user_b_id,
+            )
+    assert_insufficient_privilege(captured)
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="worker_runtime"):
+            OrganizationRule.objects.using("worker_runtime").filter(
+                pk=rule_a.id
+            ).update(enabled=False)
     assert_insufficient_privilege(captured)
 
 

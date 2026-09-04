@@ -147,11 +147,13 @@ Phase 11 evidence, 2026-09-04, local Python 3.14.7 and PostgreSQL 18.6: `apps/as
 
 ## Phase 12 — Visual no-code rule builder
 
-- [ ] Sentence-style controls can create, edit, duplicate, disable, delete, test, and explain rules.
-- [ ] Only the approved non-enforcement effects are available; blocking, revocation, permission changes, and other enforcement effects are unavailable.
-- [ ] Structured JSON is hidden behind “View technical details” and contains no executable code.
-- [ ] State-changing operations are POST-only and CSRF-protected.
-- [ ] A nontechnical user can create the payroll plus external-transmission human-approval/High-floor example without code.
+- [x] Sentence-style controls can create, edit, duplicate, disable, delete, test, and explain rules.
+- [x] Only the approved non-enforcement effects are available; blocking, revocation, permission changes, and other enforcement effects are unavailable.
+- [x] Structured JSON is hidden behind “View technical details” and contains no executable code.
+- [x] State-changing operations are POST-only and CSRF-protected.
+- [x] A nontechnical user can create the payroll plus external-transmission human-approval/High-floor example without code.
+
+Phase 12 evidence, 2026-09-04, local Django test client against PostgreSQL 18.6: the organization-rule UI presents sentence fields for "This software accesses," "This software can," "Minimum risk level," and "Require this control." It supports create, edit with version increment, collision-safe duplicate, enable/disable with version increment, delete, unsaved test against tenant inventory, and plain-language explanation. The exact payroll plus external-transfer, human-approval, High-floor example is created without entering code. The builder exposes only risk points, severity floor, required control, finding creation, and review recommendation; organization-authored points cannot be negative and PASS is unavailable, so the firm can add stricter findings without reducing baseline risk. The compiler accepts only `all`/`effects`, allowlisted condition fields/operators, and approved effects; enforcement and executable-shaped definitions fail closed. JSON is auto-escaped and shown only under "View technical details." All writes are POST paths with CSRF tokens, and enforced-CSRF tests reject tokenless create, edit, duplicate, toggle, and delete. Forced RLS isolates organization rules for app and worker roles; the worker is read-only and cross-tenant inserts fail. Enabled rule definitions and versions are canonically copied into later snapshots, while prior snapshots retain their historical copies. All 12 focused builder tests passed; the canonical PowerShell/restricted-role suite passed all 175 tests with 91.98% branch coverage, including 17 restricted-role tests. Formatting, lint, migration-drift, migrations, and Django system checks passed. This is local workflow evidence; no customer usability session or production rule is claimed.
 
 ## Phase 13 — PostgreSQL background jobs
 

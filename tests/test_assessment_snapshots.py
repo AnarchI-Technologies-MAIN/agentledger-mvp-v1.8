@@ -19,6 +19,7 @@ from apps.assessments.snapshots import (
 )
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
+from apps.policies.models import OrganizationRule
 from apps.roi.engine import Assumption, AssumptionProvenance, ROIInputs
 
 pytestmark = pytest.mark.django_db
@@ -73,7 +74,6 @@ def create_snapshot(user, organization, item, **overrides):
         "evidence_references": (
             {"reference": "EVIDENCE-1", "type": "customer_statement"},
         ),
-        "organization_rule_versions": ("ORG-RULES-1",),
     }
     values.update(overrides)
     return create_assessment_snapshot(**values)
@@ -109,7 +109,7 @@ def test_snapshot_captures_complete_versioned_input_results_and_hashes(
     assert snapshot.input_payload["rulesets"] == {
         "platform": "not_published",
         "industry": {"name": "accounting_and_bookkeeping", "version": "1.1.0"},
-        "organization": ["ORG-RULES-1"],
+        "organization": [],
     }
     assert snapshot.input_payload["risk_configuration"]["version"] == "AL-RISK-1"
     assert len(snapshot.input_payload["risk_configuration"]["weights"]) == 8
@@ -165,6 +165,30 @@ def test_yesterdays_snapshot_remains_identical_after_todays_changes(
     assessment_context,
 ):
     user, organization, item = assessment_context
+    organization_rule = OrganizationRule.objects.create(
+        organization=organization,
+        name="Firm payroll review",
+        definition={
+            "all": [
+                {
+                    "field": "data_categories",
+                    "operator": "contains",
+                    "value": "payroll",
+                },
+                {
+                    "field": "capabilities",
+                    "operator": "contains",
+                    "value": "external_transfer",
+                },
+            ],
+            "effects": [{"type": "require_control", "control": "human_approval"}],
+        },
+        result_on_match=OrganizationRule.Result.FAIL,
+        severity=OrganizationRule.Severity.HIGH,
+        explanation="The firm requires a payroll transfer review.",
+        remediation="Record the reviewer before information is sent.",
+        created_by=user,
+    )
     yesterday = create_snapshot(user, organization, item)
     original_input = copy.deepcopy(yesterday.input_payload)
     original_result = copy.deepcopy(yesterday.result_payload)
@@ -174,6 +198,9 @@ def test_yesterdays_snapshot_remains_identical_after_todays_changes(
     item.capabilities = ["data_analysis"]
     item.human_approval = True
     item.save(update_fields=("vendor_name", "capabilities", "human_approval"))
+    organization_rule.version = 2
+    organization_rule.explanation = "The firm's review wording changed today."
+    organization_rule.save(update_fields=("version", "explanation", "updated_at"))
     today = create_snapshot(
         user,
         organization,
@@ -181,7 +208,6 @@ def test_yesterdays_snapshot_remains_identical_after_todays_changes(
         previous_snapshot=yesterday,
         roi_inputs=roi_inputs(hours="12.00"),
         captured_at=datetime(2026, 9, 4, 12, 0, tzinfo=UTC),
-        organization_rule_versions=("ORG-RULES-2",),
     )
 
     yesterday.refresh_from_db()
@@ -193,6 +219,8 @@ def test_yesterdays_snapshot_remains_identical_after_todays_changes(
     assert today.version == 2
     assert today.input_sha256 != yesterday.input_sha256
     assert today.result_sha256 != yesterday.result_sha256
+    assert yesterday.input_payload["rulesets"]["organization"][0]["version"] == 1
+    assert today.input_payload["rulesets"]["organization"][0]["version"] == 2
     with pytest.raises(ValueError, match="latest version"):
         create_snapshot(
             user,

@@ -13,6 +13,11 @@ from django.db import transaction
 from apps.inventory.models import InventoryItem
 from apps.policies.context import inventory_policy_context
 from apps.policies.engine import ENGINE_VERSION, PolicyResult, evaluate_policies
+from apps.policies.models import OrganizationRule
+from apps.policies.organization_rules import (
+    compile_organization_rule,
+    organization_rule_snapshot,
+)
 from apps.policies.packs.accounting import ACCOUNTING_RISK_PACK_V1
 from apps.policies.risk import (
     DEFAULT_RISK_CONFIGURATION,
@@ -180,7 +185,6 @@ def create_assessment_snapshot(
     roi_inputs: ROIInputs,
     captured_at: datetime,
     evidence_references: tuple[dict[str, Any], ...] = (),
-    organization_rule_versions: tuple[str, ...] = (),
     previous_snapshot: AssessmentSnapshot | None = None,
 ) -> AssessmentSnapshot:
     if previous_snapshot is not None:
@@ -220,6 +224,15 @@ def create_assessment_snapshot(
     )
     if not any(item.id == assessed_item_id for item in inventory):
         raise ValueError("The ROI item must belong to the snapshotted inventory")
+    organization_rule_records = tuple(
+        OrganizationRule.objects.filter(
+            organization_id=organization_id,
+            enabled=True,
+        ).order_by("id")
+    )
+    organization_rules = tuple(
+        compile_organization_rule(record) for record in organization_rule_records
+    )
 
     input_payload = {
         "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
@@ -234,7 +247,10 @@ def create_assessment_snapshot(
                 "name": ACCOUNTING_RISK_PACK_V1.name,
                 "version": ACCOUNTING_RISK_PACK_V1.version,
             },
-            "organization": list(organization_rule_versions),
+            "organization": [
+                organization_rule_snapshot(record)
+                for record in organization_rule_records
+            ],
         },
         "risk_configuration": {
             "version": DEFAULT_RISK_CONFIGURATION.version,
@@ -257,7 +273,7 @@ def create_assessment_snapshot(
     inventory_results = []
     for item in inventory:
         policy = evaluate_policies(
-            ACCOUNTING_RISK_PACK_V1.rules,
+            ACCOUNTING_RISK_PACK_V1.rules + organization_rules,
             inventory_policy_context(item),
         )
         risk = calculate_policy_risk(policy)

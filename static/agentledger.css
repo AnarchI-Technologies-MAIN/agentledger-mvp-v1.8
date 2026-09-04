@@ -48,6 +48,7 @@ body { margin: 0; }
 .risk-summary details { margin-top: 1rem; }
 .finding { border-top: 1px solid #e6ece8; padding-top: 1rem; }
 .hash-value, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+.sentence-rule { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid #d9e3dd; border-radius: 12px; }
 .import-row { margin-bottom: 1.25rem; }
 .row-error { border-color: #b94b4b; }
 .compact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 1rem; }
