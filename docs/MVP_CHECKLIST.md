@@ -345,11 +345,76 @@ Next authorized phase:
 
 ## Phase 16 — Isolated PDF renderer
 
-- [ ] A separate renderer has no public domain and receives no database, OAuth, KEK, or unnecessary bucket credentials.
-- [ ] The renderer accepts validated structured data and fixed templates, never customer-provided arbitrary HTML or output paths.
-- [ ] Chromium runs non-root with its sandbox enabled; JavaScript is off, service workers are blocked, and every browser request is aborted.
-- [ ] Customer strings are escaped and payload, time, output size, process, and memory limits are enforced where supported.
-- [ ] Script, remote image/CSS, `file://`, and traversal payloads cannot execute, fetch, or read sensitive local files.
+- [x] A separate renderer has no public domain and receives no database, OAuth, KEK, or unnecessary bucket credentials.
+- [x] The renderer accepts validated structured data and fixed templates, never customer-provided arbitrary HTML or output paths.
+- [x] Chromium runs non-root inside the hardened renderer-container isolation boundary; JavaScript is off, service workers are blocked, and every browser request is aborted.
+- [x] Customer strings are escaped and payload, time, output size, process, CPU, memory, PID, filesystem, and temporary-output limits are enforced where supported.
+- [x] Script, remote image/CSS, `file://`, traversal, and network-fetch payloads cannot execute, fetch, or read sensitive local files.
+
+Phase 16 verification date:
+
+**2026-09-04**
+
+Environment:
+
+- Windows local development environment
+- Python 3.14.7
+- Django 5.2.17
+- PostgreSQL 18.6
+- Docker Desktop / Docker Compose local renderer environment
+- Playwright Chromium installed inside the dedicated renderer image
+- restricted application and worker roles provisioned through `scripts/verify_rls.py`
+
+Verified implementation:
+
+- The PDF renderer is a separate service with no published ports and no public domain.
+- The renderer receives no PostgreSQL credentials, OAuth credentials, key-encryption keys, or bucket credentials.
+- The renderer accepts only a strict structured Phase 15 report payload and fixed template code; customer-provided arbitrary HTML, filesystem paths, output paths, scripts, URLs, remote CSS, remote images, and traversal-shaped fields are rejected.
+- Payload validation enforces the accepted report schema, a 1 MiB request ceiling, bounded strings, bounded collections, bounded nesting, UUID and report-ID formats, exact SHA-256 encoding, strict JSON serialization, and forbidden active/path/network field names.
+- Customer strings are escaped before HTML rendering.
+- JavaScript is disabled, service workers are blocked, and every browser request is aborted.
+- PDF generation executes under a hard process timeout and uses only the controlled `/work/output` temporary filesystem.
+- Rendered output is removed after response completion; the live specimen left `remaining_output_files=[]`.
+- The renderer executes as UID/GID `10001:10001` with a read-only root filesystem.
+- Linux capabilities are dropped with `CapDrop=["ALL"]`.
+- `no-new-privileges` is active.
+- The renderer uses the official Playwright default-deny seccomp profile with `SCMP_ACT_ERRNO`.
+- Runtime limits are enforced at 256 PIDs, 768 MiB memory, and 1 CPU.
+- No host ports are published.
+- The renderer network is internal-only. Live specimens proved PostgreSQL name/access unavailable and external network access unavailable.
+- Invalid renderer input returns HTTP 422 without leaking tracebacks or Playwright implementation details.
+- A live canonical `/v1/render` request returned HTTP 200, `application/pdf`, `Cache-Control: no-store`, valid `%PDF-` bytes, and left no temporary output artifacts.
+- Chromium's internal browser sandbox is intentionally disabled for the MVP because the bundled Chromium build reproducibly aborted during Linux zygote sandbox startup when `chromium_sandbox=True`.
+- The hardened non-root container/process boundary is therefore the explicit MVP renderer isolation authority.
+- Disabling Chromium's internal sandbox does not weaken the documented outer controls: non-root execution, read-only root filesystem, dropped capabilities, no-new-privileges, default-deny seccomp, internal-only networking, browser-request abortion, bounded resources, controlled temporary storage, hard timeout, strict structured input, and output cleanup remain enforced.
+- No claim is made that Chromium itself is sandboxed.
+
+Evidence:
+
+- focused renderer regression after final formatting: 16 passed
+- canonical repository suite through `scripts/test.ps1`: 313 passed
+- canonical coverage: 90.15%
+- live canonical render: HTTP 200 / `application/pdf` / valid `%PDF-`
+- invalid-payload specimen: HTTP 422 with no traceback or Playwright-detail leakage
+- renderer PostgreSQL access: blocked
+- renderer external network access: blocked
+- renderer output cleanup: verified empty after successful rendering
+- effective container boundary: non-root UID/GID 10001, read-only root, all capabilities dropped, no-new-privileges, default-deny seccomp, 256 PID limit, 768 MiB RAM limit, 1 CPU, no published ports
+- Ruff format: 160 files already formatted
+- Ruff lint: all checks passed
+- `git diff --check`: clean
+- Django system check: no issues
+- migration drift: none
+- Docker Compose validation: valid
+- durable repository evidence: `Dockerfile.renderer`, `compose.yaml`, `deploy/playwright-seccomp.json`, `renderer/`, `tests/test_renderer.py`, and Phase 15 canonical report-context integration
+
+Phase 16 status:
+
+**VERIFIED**
+
+Next authorized phase:
+
+**Phase 17 — Private Report Storage**
 
 ## Phase 17 — Private report storage
 

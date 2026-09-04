@@ -4,20 +4,26 @@ FROM python:3.14.7-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    XDG_CONFIG_HOME=/tmp/chromium-config \
+    XDG_CACHE_HOME=/tmp/chromium-cache \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-RUN groupadd --system renderer \
-    && useradd --system --gid renderer --home-dir /app renderer
+RUN groupadd --gid 10001 renderer \
+    && useradd --uid 10001 --gid renderer --home-dir /app --no-create-home renderer
 
 WORKDIR /app
 COPY --from=uv /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project \
-    && uv run --no-sync playwright install --with-deps chromium
+    && uv run --no-sync playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
 
-RUN chown -R renderer:renderer /app
+COPY renderer ./renderer
+
+RUN install -d -o renderer -g renderer -m 0700 /work/output
 USER renderer
 
-# The renderer application and private service command are implemented in Phase 16.
-CMD ["uv", "run", "--no-sync", "python", "-c", "raise SystemExit('renderer is not implemented before Phase 16')"]
+CMD [".venv/bin/python", "-m", "renderer.server"]
