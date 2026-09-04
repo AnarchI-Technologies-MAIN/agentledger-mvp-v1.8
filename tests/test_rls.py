@@ -23,6 +23,8 @@ from apps.inventory.models import InventoryItem
 from apps.jobs.models import BackgroundJob
 from apps.organizations.models import Organization, OrganizationMember
 from apps.policies.models import OrganizationRule
+from apps.reports.models import Report
+from apps.reports.services import create_report
 
 pytestmark = [
     pytest.mark.rls,
@@ -84,7 +86,11 @@ def isolation_fixture():
     )
     yield fixture
     with connections["default"].cursor() as cursor:
-        cursor.execute("TRUNCATE TABLE assessment_snapshots")
+        cursor.execute(
+            "TRUNCATE TABLE reports, audit_events, "
+            "audit_merkle_blocks, audit_chain_heads, "
+            "assessment_snapshots CASCADE"
+        )
     BackgroundJob.objects.all().delete()
     OrganizationRule.objects.all().delete()
     InventoryItem.objects.all().delete()
@@ -186,6 +192,7 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             ("inventory_items", True, True, True),
             ("organization_rules", True, True, True),
             ("organizations_organizationmember", True, True, True),
+            ("reports", True, True, True),
         ]
         cursor.execute(
             """
@@ -260,6 +267,157 @@ def test_assessment_snapshots_are_tenant_isolated_and_append_only(isolation_fixt
                 result_sha256=canonical_sha256(forbidden),
             )
     assert_insufficient_privilege(captured)
+
+
+def test_reports_are_tenant_isolated_and_runtime_immutable(
+    isolation_fixture,
+):
+    fixture = isolation_fixture
+    payload_a = {"tenant": "A"}
+    payload_b = {"tenant": "B"}
+    snapshot_a = AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_a_id,
+        created_by_id=fixture.user_a_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload_a,
+        result_payload=payload_a,
+        input_sha256=canonical_sha256(payload_a),
+        result_sha256=canonical_sha256(payload_a),
+    )
+    snapshot_b = AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_b_id,
+        created_by_id=fixture.user_b_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload_b,
+        result_payload=payload_b,
+        input_sha256=canonical_sha256(payload_b),
+        result_sha256=canonical_sha256(payload_b),
+    )
+    report_a = Report.objects.create(
+        organization_id=fixture.organization_a_id,
+        assessment_snapshot=snapshot_a,
+        sequence=900001,
+        identifier_year=2026,
+        report_identifier="AL-2026-900001",
+        organization_display_name="RLS Firm A",
+        created_by_id=fixture.user_a_id,
+    )
+    Report.objects.create(
+        organization_id=fixture.organization_b_id,
+        assessment_snapshot=snapshot_b,
+        sequence=900002,
+        identifier_year=2026,
+        report_identifier="AL-2026-900002",
+        organization_display_name="RLS Firm B",
+        created_by_id=fixture.user_b_id,
+    )
+
+    with tenant_transaction(
+        fixture.organization_a_id,
+        using="app_runtime",
+    ):
+        assert set(
+            Report.objects.using("app_runtime").values_list(
+                "id",
+                flat=True,
+            )
+        ) == {report_a.id}
+
+        with pytest.raises(DatabaseError) as captured:
+            with transaction.atomic(using="app_runtime"):
+                Report.objects.using("app_runtime").filter(id=report_a.id).update(
+                    organization_display_name="Changed"
+                )
+
+    assert_insufficient_privilege(captured)
+
+    with tenant_transaction(
+        fixture.organization_a_id,
+        using="worker_runtime",
+    ):
+        assert set(
+            Report.objects.using("worker_runtime").values_list(
+                "id",
+                flat=True,
+            )
+        ) == {report_a.id}
+
+        with pytest.raises(DatabaseError) as captured:
+            with transaction.atomic(using="worker_runtime"):
+                Report.objects.using("worker_runtime").filter(id=report_a.id).update(
+                    organization_display_name="Changed"
+                )
+
+    assert_insufficient_privilege(captured)
+
+
+def test_report_service_uses_restricted_app_role(
+    isolation_fixture,
+):
+    fixture = isolation_fixture
+    payload = {"tenant": "A"}
+    snapshot = AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_a_id,
+        created_by_id=fixture.user_a_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload,
+        result_payload=payload,
+        input_sha256=canonical_sha256(payload),
+        result_sha256=canonical_sha256(payload),
+    )
+
+    with identity_transaction(
+        fixture.user_a_id,
+        using="app_runtime",
+    ):
+        activate_tenant(
+            fixture.organization_a_id,
+            using="app_runtime",
+        )
+        report = create_report(
+            organization_id=fixture.organization_a_id,
+            assessment_snapshot_id=snapshot.id,
+            created_by_id=fixture.user_a_id,
+            using="app_runtime",
+        )
+
+    assert report.organization_id == fixture.organization_a_id
+    assert report.report_identifier.startswith("AL-")
+
+
+def test_app_role_cannot_link_report_to_another_tenants_snapshot(
+    isolation_fixture,
+):
+    fixture = isolation_fixture
+    payload = {"tenant": "B"}
+    snapshot_b = AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_b_id,
+        created_by_id=fixture.user_b_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload,
+        result_payload=payload,
+        input_sha256=canonical_sha256(payload),
+        result_sha256=canonical_sha256(payload),
+    )
+
+    with pytest.raises(DatabaseError):
+        with identity_transaction(
+            fixture.user_a_id,
+            using="app_runtime",
+        ):
+            activate_tenant(
+                fixture.organization_a_id,
+                using="app_runtime",
+            )
+            Report.objects.using("app_runtime").create(
+                organization_id=fixture.organization_a_id,
+                assessment_snapshot_id=snapshot_b.id,
+                sequence=910001,
+                identifier_year=2026,
+                report_identifier="AL-2026-910001",
+                organization_display_name="RLS Firm A",
+                created_by_id=fixture.user_a_id,
+            )
 
 
 def test_organization_rules_are_tenant_isolated_for_app_and_worker(

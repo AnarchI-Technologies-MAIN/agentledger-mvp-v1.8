@@ -9,5 +9,11 @@
     <div><dt>Integrity check</dt><dd>{% if hashes_valid %}Hashes match the stored snapshot{% else %}Hash verification failed{% endif %}</dd></div>
     <div><dt>Schema version</dt><dd>{{ snapshot.input_payload.snapshot_schema_version }}</dd></div>
   </dl>
+  {% if hashes_valid %}
+    <form method="post" action="{% url 'reports:generate' snapshot.id %}">
+      {% csrf_token %}
+      <button class="button" type="submit">Open browser report</button>
+    </form>
+  {% endif %}
   <details class="card"><summary>View technical details</summary><h2>Captured input</h2><pre>{{ snapshot.input_payload }}</pre><h2>Captured result</h2><pre>{{ snapshot.result_payload }}</pre></details>
 {% endblock %}

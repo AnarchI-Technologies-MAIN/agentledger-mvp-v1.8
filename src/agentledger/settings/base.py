@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.assessments.apps.AssessmentsConfig",
     "apps.jobs.apps.JobsConfig",
     "apps.audit.apps.AuditConfig",
+    "apps.reports.apps.ReportsConfig",
 ]
 
 MIDDLEWARE = [

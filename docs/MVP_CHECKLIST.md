@@ -265,7 +265,7 @@ Verified implementation:
 - `append_audit_event()` validates the exact event registry, UUIDs, string JSON keys, object-root payloads, binary-float exclusion, and complete RFC 8785-compatible event envelopes.
 - Audit insertion and `audit_batch_seal` enqueue occur in one tenant transaction without synchronous chain-head mutation.
 - Existing manual inventory create/edit/archive, CSV inventory import and final reconciliation acceptance, organization-rule create/edit/duplicate/toggle/delete, and assessment completion actions emit their applicable exact audit events atomically with business state.
-- Excluded discovery, connector, and Phase 15 report behavior remains unwired; its event vocabulary is reserved only.
+- At Phase 14 closure, excluded discovery, connector, and report behavior remained unwired; its event vocabulary was reserved only. Phase 15 subsequently wired report generation.
 - `AL-MERKLE-1` uses RFC 8785, domain-separated SHA-256 leaf/node/block hashes, deterministic largest-power-of-two splitting, and `AL-BLOCK-1` envelopes.
 - Sealing orders events by `occurred_at ASC, id ASC`, locks only the tenant chain head, caps blocks at 1,000 events, writes seal metadata once, and advances the tenant-local block-hash chain atomically.
 - Audit persistence requests PostgreSQL `REPEATABLE READ` before tenant activation. A synchronized two-transaction specimen proves an event committed after Transaction A's snapshot remains unsealed until block N+1.
@@ -298,10 +298,50 @@ Next authorized phase:
 
 ## Phase 15 — Canonical browser reporting
 
-- [ ] One canonical report context drives browser and PDF reports.
-- [ ] The report contains every required section and version/identity field.
-- [ ] Report identifiers use the accepted deterministic sequence.
-- [ ] The report is titled as an AI Risk & ROI Assessment and makes no unsupported compliance or security guarantee.
+- [x] One canonical report context drives browser and PDF reports.
+- [x] The report contains every required section and version/identity field.
+- [x] Report identifiers use the accepted deterministic sequence.
+- [x] The report is titled as an AI Risk & ROI Assessment and makes no unsupported compliance or security guarantee.
+
+Phase 15 verification date:
+
+**2026-09-04**
+
+Environment:
+
+- Windows local development environment
+- Python 3.14.7
+- Django 5.2.17
+- PostgreSQL 18.6
+- restricted application and worker roles provisioned through `scripts/verify_rls.py`
+
+Verified implementation:
+
+- `build_report_context()` is the single immutable-snapshot-derived payload for the browser template and the Phase 16 PDF renderer boundary.
+- The canonical context includes report and organization identity, assessment date, ruleset versions, executive summary, inventory, risk overview, individual risk findings, failed/warning policy findings, recommendations, AI expenditure, ROI, methodology, and evidence.
+- Reports capture organization display identity and reference the immutable assessment snapshot; later live inventory or organization-name changes do not alter report content.
+- PostgreSQL allocates globally unique, monotonic identifiers in the accepted `AL-YYYY-NNNNNN` form. Generation is idempotent per assessment snapshot under a transaction-scoped advisory lock.
+- Report creation and the exact `report.generated` audit event commit atomically. Database constraints and triggers reject cross-tenant snapshots and report mutation or deletion.
+- Forced RLS and restricted grants allow tenant-scoped application creation/read and worker read only; viewers cannot generate reports and cross-tenant report access returns not found.
+- The browser report title is exactly `AI Risk & ROI Assessment`, automatically escapes snapshot content, and states that the report is decision support rather than a compliance certification or security guarantee.
+
+Evidence:
+
+- focused report, assessment, audit, and RLS regression: 62 passed
+- canonical repository suite through `scripts/test.ps1`: 297 passed
+- canonical branch coverage: 91.42%
+- Ruff format and lint checks: passed
+- Django system check: no issues
+- migration drift: none
+- durable repository evidence: `apps/reports/`, `templates/reports/detail.html`, report integration in the assessment detail view, report migrations, and `tests/test_reports.py` plus report RLS specimens in `tests/test_rls.py`
+
+Phase 15 status:
+
+**VERIFIED**
+
+Next authorized phase:
+
+**Phase 16 — Isolated PDF Renderer**
 
 ## Phase 16 — Isolated PDF renderer
 
