@@ -33,6 +33,19 @@ SUPPORTED_EFFECTS = frozenset(
     }
 )
 
+SUPPORTED_RISK_DIMENSIONS = frozenset(
+    {
+        "data_sensitivity",
+        "system_privilege",
+        "external_connectivity",
+        "autonomy",
+        "financial_impact",
+        "human_oversight",
+        "vendor_risk",
+        "regulatory_relevance",
+    }
+)
+
 ALLOWED_CONTEXT_FIELDS = frozenset(
     {
         "autonomy_level",
@@ -132,9 +145,16 @@ class Effect:
             not isinstance(self.value, int) or isinstance(self.value, bool)
         ):
             raise PolicyDefinitionError("risk_points requires an integer value")
-        if self.type == "severity_floor" and (
-            not isinstance(self.value, str) or self.value not in Severity.__members__
+        if self.type == "risk_points" and self.dimension not in (
+            SUPPORTED_RISK_DIMENSIONS
         ):
+            raise PolicyDefinitionError("risk_points requires a supported dimension")
+        if self.type == "severity_floor" and self.value not in {
+            "LOW",
+            "MODERATE",
+            "HIGH",
+            "CRITICAL",
+        }:
             raise PolicyDefinitionError("severity_floor requires a named severity")
         if self.type == "require_control" and not self.control:
             raise PolicyDefinitionError("require_control requires a control name")

@@ -120,10 +120,12 @@ Phase 8 evidence, 2026-09-04, local Python 3.14.7: `apps/policies/packs/accounti
 
 ## Phase 9 — Deterministic risk engine
 
-- [ ] The eight dimensions, weights, 0–100 scales, weighted sum, and Low/Moderate/High/Critical bands match the approved baseline.
-- [ ] Mandatory-rule severity/risk floors apply deterministically.
-- [ ] Every contribution stores reason, rule, dimension, and points.
-- [ ] Every score visible in the UI answers “Why did this receive this score?” without source-code inspection.
+- [x] The eight dimensions, weights, 0–100 scales, weighted sum, and Low/Moderate/High/Critical bands match the approved baseline.
+- [x] Mandatory-rule severity/risk floors apply deterministically.
+- [x] Every contribution stores reason, rule, dimension, and points.
+- [x] Every score visible in the UI answers “Why did this receive this score?” without source-code inspection.
+
+Phase 9 evidence, 2026-09-04, local Python 3.14.7 and Django test client against PostgreSQL 18.6: `apps/policies/risk.py` defines exactly Data Sensitivity 20%, System Privilege 20%, Autonomy 15%, External Connectivity 15%, Human Oversight 10%, Financial Impact 10%, Regulatory Relevance 5%, and Vendor Risk 5%. Each dimension is clamped to 0–100; the Decimal weighted sum uses deterministic half-up integer rounding; the exact 0–24 Low, 25–49 Moderate, 50–74 High, and 75–100 Critical boundaries are tested. Risk contributions retain reason, rule ID/version, dimension, and signed integer points. Severity-floor effects raise both the score to the corresponding band minimum and the band, including a repeated-evaluation proof for a mandatory-platform Critical rule. The inventory detail evaluates the versioned accounting pack over a complete normalized context and visibly presents score/band, the question "Why did this receive this score?", signed rule/version explanations, all eight dimension calculations, the pre-floor weighted total, matched findings, and next steps. Missing retention/training evidence remains explicitly unknown. All 70 focused tests and the canonical PowerShell/restricted-role suite passed; the full suite passed all 140 tests with 91.27% branch coverage. Formatting, lint, migration-drift, and Django system checks also passed. This is local deterministic/UI response evidence; no production assessment is claimed.
 
 ## Phase 10 — ROI engine
 

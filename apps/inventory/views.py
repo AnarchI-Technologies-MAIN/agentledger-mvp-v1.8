@@ -10,6 +10,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.organizations.models import OrganizationMember
+from apps.policies.context import inventory_policy_context
+from apps.policies.engine import PolicyResult, evaluate_policies
+from apps.policies.packs.accounting import ACCOUNTING_RISK_PACK_V1
+from apps.policies.risk import calculate_policy_risk
 
 from .forms import InventoryItemForm
 from .models import InventoryItem
@@ -45,7 +49,7 @@ def _require_inventory_writer(request):
 
 def _inventory_item(request, item_id):
     return get_object_or_404(
-        InventoryItem,
+        InventoryItem.objects.select_related("product__vendor"),
         id=item_id,
         organization_id=_organization_id(request),
     )
@@ -87,10 +91,24 @@ def inventory_list_view(request):
 def inventory_detail_view(request, item_id):
     item = _inventory_item(request, item_id)
     membership = _membership(request)
+    policy_evaluation = evaluate_policies(
+        ACCOUNTING_RISK_PACK_V1.rules,
+        inventory_policy_context(item),
+    )
+    risk_score = calculate_policy_risk(policy_evaluation)
     return render(
         request,
         "inventory/detail.html",
-        {"item": item, "can_write": membership.role in WRITE_ROLES},
+        {
+            "item": item,
+            "can_write": membership.role in WRITE_ROLES,
+            "policy_findings": tuple(
+                result
+                for result in policy_evaluation.results
+                if result.result is not PolicyResult.NOT_APPLICABLE
+            ),
+            "risk_score": risk_score,
+        },
     )
 
 

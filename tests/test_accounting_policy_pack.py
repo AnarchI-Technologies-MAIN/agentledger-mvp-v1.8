@@ -56,10 +56,10 @@ def test_pack_covers_the_approved_accounting_risk_subjects():
         "tax_records",
         "banking",
         "financial_transaction",
-        "accounting_data_modification",
-        "client_financial_records",
+        "record_modification",
+        "financial_records",
         "data_export",
-        "external_communication",
+        "communication",
         "external_transfer",
         "complete",
         "unknown",
@@ -114,12 +114,12 @@ def test_realistic_bookkeeping_inventory_produces_clear_findings():
 
 def test_financial_action_and_accounting_change_findings_are_useful():
     autonomous_accounting_agent = {
-        "data_categories": ["client_financial_records"],
+        "data_categories": ["financial_records"],
         "capabilities": [
             "financial_transaction",
-            "accounting_data_modification",
+            "record_modification",
             "data_export",
-            "external_communication",
+            "communication",
         ],
         "connected_systems": ["banking", "general_ledger"],
         "permissions": ["read", "write"],

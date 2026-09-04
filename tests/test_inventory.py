@@ -96,6 +96,31 @@ def test_owner_can_add_and_view_inventory(client, inventory_context):
     assert b"$49.95" in detail.content
 
 
+def test_inventory_detail_explains_risk_score_and_each_contribution(
+    client, inventory_context
+):
+    _user, organization, _membership = inventory_context
+    item = InventoryItem.objects.create(
+        organization=organization,
+        display_name="Payroll Messenger",
+        vendor_name="Example Vendor",
+        data_categories=["payroll"],
+        capabilities=["external_transfer"],
+        human_approval=False,
+    )
+
+    response = client.get(reverse("inventory:detail", args=(item.id,)))
+
+    assert response.status_code == 200
+    assert b"Risk: 75" in response.content
+    assert b"Critical" in response.content
+    assert b"Why did this receive this score?" in response.content
+    assert b"Payroll information can leave the firm" in response.content
+    assert b"Show the arithmetic" in response.content
+    assert b"Data Sensitivity: 25" in response.content
+    assert b"Weighted total before required minimums" in response.content
+
+
 def test_viewer_cannot_create_or_edit_inventory(client, inventory_context):
     _user, organization, membership = inventory_context
     membership.role = OrganizationMember.Role.VIEWER

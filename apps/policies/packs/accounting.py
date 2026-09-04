@@ -72,7 +72,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
                 Condition("permissions", "contains", "write"),
             ),
             effects=(
-                Effect("risk_points", dimension="permission_scope", value=30),
+                Effect("risk_points", dimension="system_privilege", value=30),
                 Effect("recommend_review", message="Review banking write access."),
                 Effect("severity_floor", value="HIGH"),
             ),
@@ -98,6 +98,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             ),
             effects=(
                 Effect("risk_points", dimension="financial_impact", value=40),
+                Effect("risk_points", dimension="human_oversight", value=30),
                 Effect("severity_floor", value="CRITICAL"),
                 Effect("require_control", control="human_approval"),
             ),
@@ -138,7 +139,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             version=ACCOUNTING_RISK_PACK_VERSION,
             layer=RuleLayer.INDUSTRY,
             conditions=(
-                Condition("data_categories", "contains", "client_financial_records"),
+                Condition("data_categories", "contains", "financial_records"),
                 Condition("capabilities", "contains", "data_export"),
             ),
             effects=(
@@ -158,11 +159,11 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             version=ACCOUNTING_RISK_PACK_VERSION,
             layer=RuleLayer.INDUSTRY,
             conditions=(
-                Condition("data_categories", "contains", "client_financial_records"),
-                Condition("capabilities", "contains", "external_communication"),
+                Condition("data_categories", "contains", "financial_records"),
+                Condition("capabilities", "contains", "communication"),
             ),
             effects=(
-                Effect("risk_points", dimension="external_exposure", value=20),
+                Effect("risk_points", dimension="external_connectivity", value=20),
                 Effect("require_control", control="recipient_review"),
             ),
             result_on_match=PolicyResult.WARNING,
@@ -181,7 +182,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             version=ACCOUNTING_RISK_PACK_VERSION,
             layer=RuleLayer.INDUSTRY,
             conditions=(
-                Condition("capabilities", "contains", "accounting_data_modification"),
+                Condition("capabilities", "contains", "record_modification"),
                 Condition("autonomy_level", "greater_than_or_equal", 3),
             ),
             effects=(
@@ -206,7 +207,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             layer=RuleLayer.INDUSTRY,
             conditions=(Condition("vendor_review_status", "not_equals", "complete"),),
             effects=(
-                Effect("risk_points", dimension="vendor_assurance", value=15),
+                Effect("risk_points", dimension="vendor_risk", value=15),
                 Effect("recommend_review", message="Complete the vendor review."),
             ),
             result_on_match=PolicyResult.WARNING,
@@ -226,7 +227,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             layer=RuleLayer.INDUSTRY,
             conditions=(Condition("retention_status", "equals", "unknown"),),
             effects=(
-                Effect("risk_points", dimension="data_governance", value=10),
+                Effect("risk_points", dimension="regulatory_relevance", value=10),
                 Effect("recommend_review", message="Confirm the retention terms."),
             ),
             result_on_match=PolicyResult.WARNING,
@@ -245,7 +246,7 @@ ACCOUNTING_RISK_PACK_V1 = PublishedRuleSet(
             layer=RuleLayer.INDUSTRY,
             conditions=(Condition("training_behavior", "equals", "unknown"),),
             effects=(
-                Effect("risk_points", dimension="data_governance", value=10),
+                Effect("risk_points", dimension="vendor_risk", value=10),
                 Effect(
                     "recommend_review",
                     message="Confirm whether customer data is used for training.",
