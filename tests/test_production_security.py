@@ -220,6 +220,8 @@ def test_production_hsts_is_deliberate_initial_ramp_up():
                 "from django.conf import settings; "
                 "assert settings.DEBUG is False; "
                 "assert settings.SECURE_SSL_REDIRECT is True; "
+                "assert settings.SECURE_REDIRECT_EXEMPT == "
+                "['^healthz$', '^readyz$']; "
                 "assert settings.SESSION_COOKIE_SECURE is True; "
                 "assert settings.CSRF_COOKIE_SECURE is True; "
                 "assert settings.SECURE_HSTS_SECONDS == 3600; "

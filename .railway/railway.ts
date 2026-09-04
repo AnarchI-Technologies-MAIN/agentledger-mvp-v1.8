@@ -44,6 +44,7 @@ export default defineRailway(() => {
     start: "uv run --no-sync gunicorn --config src/agentledger/gunicorn.conf.py agentledger.wsgi:application",
     healthcheck: "/readyz",
     healthcheckTimeout: 300,
+    deploy: { restartPolicyType: "ALWAYS", sleepApplication: false },
     replicas: { iad: 1 },
     env: {
       ...commonRuntime,
@@ -55,6 +56,7 @@ export default defineRailway(() => {
     source,
     build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     start: "uv run --no-sync python manage.py run_worker",
+    deploy: { restartPolicyType: "ALWAYS", sleepApplication: false },
     replicas: { iad: 1 },
     env: {
       ...commonRuntime,
@@ -67,6 +69,7 @@ export default defineRailway(() => {
     build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile.renderer" },
     healthcheck: "/healthz",
     healthcheckTimeout: 300,
+    deploy: { restartPolicyType: "ALWAYS", sleepApplication: false },
     replicas: { iad: 1 },
   });
 
