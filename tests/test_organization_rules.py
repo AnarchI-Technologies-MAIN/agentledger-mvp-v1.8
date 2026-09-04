@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
+from apps.audit.models import AuditEvent
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
 from apps.policies.engine import PolicyDefinitionError, PolicyResult
@@ -179,6 +180,22 @@ def test_edit_duplicate_disable_enable_and_delete_workflows(client, rule_context
     deleted = client.post(reverse("policies:delete", args=(copied.id,)))
     assert deleted.status_code == 302
     assert not OrganizationRule.objects.filter(pk=copied.id).exists()
+
+    events = list(AuditEvent.objects.order_by("occurred_at", "id"))
+    assert [event.event_type for event in events] == [
+        "rule.created",
+        "rule.changed",
+        "rule.created",
+        "rule.changed",
+        "rule.changed",
+        "rule.changed",
+    ]
+    assert [event.data.get("change") for event in events[3:]] == [
+        "disabled",
+        "enabled",
+        "deleted",
+    ]
+    assert all(event.entity_type == "organization_rule" for event in events)
 
 
 def test_state_changes_are_post_only_and_csrf_protected(client, rule_context):

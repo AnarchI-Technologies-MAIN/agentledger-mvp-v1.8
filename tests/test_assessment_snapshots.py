@@ -17,6 +17,7 @@ from apps.assessments.snapshots import (
     create_assessment_snapshot,
     verify_snapshot,
 )
+from apps.audit.models import AuditEvent
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
 from apps.policies.models import OrganizationRule
@@ -291,6 +292,18 @@ def test_roi_workflow_can_save_and_open_tenant_scoped_snapshot(
     assert b"Immutable assessment" in detail.content
     assert b"Hashes match the stored snapshot" in detail.content
     assert b"AL-POLICY-1" in detail.content
+    event = AuditEvent.objects.get()
+    snapshot = AssessmentSnapshot.objects.get()
+    assert event.event_type == "assessment.completed"
+    assert event.entity_type == "assessment_snapshot"
+    assert event.entity_id == snapshot.id
+    assert event.actor_user_id == user.id
+    assert event.data == {
+        "assessment_id": str(snapshot.assessment_id),
+        "input_sha256": snapshot.input_sha256,
+        "result_sha256": snapshot.result_sha256,
+        "version": "1",
+    }
 
 
 def test_viewer_cannot_save_snapshot(client, assessment_context):

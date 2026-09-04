@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "apps.policies.apps.PoliciesConfig",
     "apps.roi.apps.RoiConfig",
     "apps.assessments.apps.AssessmentsConfig",
+    "apps.jobs.apps.JobsConfig",
+    "apps.audit.apps.AuditConfig",
 ]
 
 MIDDLEWARE = [

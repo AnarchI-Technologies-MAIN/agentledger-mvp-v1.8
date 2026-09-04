@@ -8,6 +8,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.urls import reverse
 
+from apps.audit.models import AuditEvent
 from apps.inventory.forms import DATA_CATEGORY_CHOICES, InventoryItemForm
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
@@ -81,7 +82,7 @@ def test_form_uses_business_language_and_exact_currency_conversion():
 
 
 def test_owner_can_add_and_view_inventory(client, inventory_context):
-    _user, organization, _membership = inventory_context
+    user, organization, _membership = inventory_context
 
     response = client.post(reverse("inventory:create"), inventory_payload())
 
@@ -90,6 +91,12 @@ def test_owner_can_add_and_view_inventory(client, inventory_context):
     assert item.organization == organization
     assert item.source_type == InventoryItem.SourceType.MANUAL
     assert item.monthly_cost_cents == 4995
+    event = AuditEvent.objects.get()
+    assert event.organization == organization
+    assert event.actor_user_id == user.id
+    assert event.event_type == "inventory.created"
+    assert event.entity_id == item.id
+    assert event.data == {"source_type": "manual"}
     detail = client.get(response.url)
     assert detail.status_code == 200
     assert b"Ledger Assistant" in detail.content
@@ -253,6 +260,11 @@ def test_owner_can_edit_inventory_without_changing_source(client, inventory_cont
     item.refresh_from_db()
     assert item.display_name == "After"
     assert item.source_type == InventoryItem.SourceType.DISCOVERED
+    event = AuditEvent.objects.get()
+    assert event.event_type == "inventory.changed"
+    assert event.entity_id == item.id
+    assert event.data["change"] == "edited"
+    assert "display_name" in event.data["fields"]
 
 
 def test_archive_is_post_only_and_removes_item_from_current_list(
@@ -270,8 +282,35 @@ def test_archive_is_post_only_and_removes_item_from_current_list(
     assert client.post(archive_url).status_code == 302
     item.refresh_from_db()
     assert item.archived_at is not None
+    event = AuditEvent.objects.get()
+    assert event.event_type == "inventory.changed"
+    assert event.entity_id == item.id
+    assert event.data == {"change": "archived"}
     list_response = client.get(reverse("inventory:list"))
     assert list(list_response.context["items"]) == []
+
+
+def test_inventory_and_audit_append_are_atomic(
+    client,
+    inventory_context,
+    monkeypatch,
+):
+    def fail_append(**_kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(
+        "apps.inventory.views.append_audit_event",
+        fail_append,
+    )
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.post(
+            reverse("inventory:create"),
+            inventory_payload(),
+        )
+
+    assert InventoryItem.objects.count() == 0
+    assert AuditEvent.objects.count() == 0
 
 
 def test_inventory_search_and_status_filter(client, inventory_context):

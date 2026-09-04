@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,6 +11,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.assessments.snapshots import create_assessment_snapshot
+from apps.audit.append import append_audit_event
+from apps.audit.events import (
+    EVENT_INVENTORY_CHANGED,
+    EVENT_INVENTORY_CREATED,
+)
 from apps.organizations.models import OrganizationMember
 from apps.policies.context import inventory_policy_context
 from apps.policies.engine import PolicyResult, evaluate_policies
@@ -116,6 +122,7 @@ def inventory_detail_view(request, item_id):
 
 
 @login_required
+@transaction.atomic
 def inventory_roi_view(request, item_id):
     item = _inventory_item(request, item_id)
     result = None
@@ -160,6 +167,7 @@ def inventory_roi_view(request, item_id):
 
 
 @login_required
+@transaction.atomic
 def create_inventory_item_view(request):
     _require_inventory_writer(request)
     if request.method == "POST":
@@ -169,6 +177,14 @@ def create_inventory_item_view(request):
             item.organization_id = _organization_id(request)
             item.source_type = InventoryItem.SourceType.MANUAL
             item.save()
+            append_audit_event(
+                organization_id=item.organization_id,
+                actor_user_id=request.user.id,
+                event_type=EVENT_INVENTORY_CREATED,
+                entity_type="inventory_item",
+                entity_id=item.id,
+                data={"source_type": item.source_type},
+            )
             messages.success(request, f"{item.display_name} was added to inventory.")
             return redirect("inventory:detail", item_id=item.id)
     else:
@@ -177,13 +193,26 @@ def create_inventory_item_view(request):
 
 
 @login_required
+@transaction.atomic
 def edit_inventory_item_view(request, item_id):
     _require_inventory_writer(request)
     item = _inventory_item(request, item_id)
     if request.method == "POST":
         form = InventoryItemForm(request.POST, instance=item)
         if form.is_valid():
+            changed_fields = sorted(form.changed_data)
             item = form.save()
+            append_audit_event(
+                organization_id=item.organization_id,
+                actor_user_id=request.user.id,
+                event_type=EVENT_INVENTORY_CHANGED,
+                entity_type="inventory_item",
+                entity_id=item.id,
+                data={
+                    "change": "edited",
+                    "fields": changed_fields,
+                },
+            )
             messages.success(request, f"{item.display_name} was updated.")
             return redirect("inventory:detail", item_id=item.id)
     else:
@@ -193,10 +222,19 @@ def edit_inventory_item_view(request, item_id):
 
 @login_required
 @require_POST
+@transaction.atomic
 def archive_inventory_item_action(request, item_id):
     _require_inventory_writer(request)
     item = _inventory_item(request, item_id)
     item.archived_at = timezone.now()
     item.save(update_fields=("archived_at", "updated_at"))
+    append_audit_event(
+        organization_id=item.organization_id,
+        actor_user_id=request.user.id,
+        event_type=EVENT_INVENTORY_CHANGED,
+        entity_type="inventory_item",
+        entity_id=item.id,
+        data={"change": "archived"},
+    )
     messages.success(request, f"{item.display_name} was archived.")
     return redirect("inventory:list")

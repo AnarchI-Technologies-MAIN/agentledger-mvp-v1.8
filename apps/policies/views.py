@@ -6,10 +6,13 @@ import uuid
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.audit.append import append_audit_event
+from apps.audit.events import EVENT_RULE_CHANGED, EVENT_RULE_CREATED
 from apps.organizations.models import OrganizationMember
 
 from .context import inventory_policy_context
@@ -86,9 +89,22 @@ def _render_rule_form(request, form, *, mode, current=None):
                     inventory_policy_context(test_item),
                 )
         elif request.POST.get("action") == "save":
+            event_type = EVENT_RULE_CREATED
             if current:
                 candidate.version = current.version + 1
+                event_type = EVENT_RULE_CHANGED
             candidate.save()
+            append_audit_event(
+                organization_id=candidate.organization_id,
+                actor_user_id=request.user.id,
+                event_type=event_type,
+                entity_type="organization_rule",
+                entity_id=candidate.id,
+                data={
+                    "enabled": candidate.enabled,
+                    "version": str(candidate.version),
+                },
+            )
             messages.success(request, f"{candidate.name} was saved.")
             return redirect("policies:detail", rule_id=candidate.id)
     return render(
@@ -131,6 +147,7 @@ def detail_rule_view(request, rule_id):
 
 
 @login_required
+@transaction.atomic
 def create_rule_view(request):
     _require_writer(request)
     form = OrganizationRuleForm(
@@ -141,6 +158,7 @@ def create_rule_view(request):
 
 
 @login_required
+@transaction.atomic
 def edit_rule_view(request, rule_id):
     _require_writer(request)
     rule = _rule(request, rule_id)
@@ -154,6 +172,7 @@ def edit_rule_view(request, rule_id):
 
 @login_required
 @require_POST
+@transaction.atomic
 def duplicate_rule_action(request, rule_id):
     _require_writer(request)
     source = _rule(request, rule_id)
@@ -177,18 +196,41 @@ def duplicate_rule_action(request, rule_id):
         enabled=source.enabled,
         created_by_id=request.user.id,
     )
+    append_audit_event(
+        organization_id=duplicate.organization_id,
+        actor_user_id=request.user.id,
+        event_type=EVENT_RULE_CREATED,
+        entity_type="organization_rule",
+        entity_id=duplicate.id,
+        data={
+            "source_rule_id": str(source.id),
+            "version": str(duplicate.version),
+        },
+    )
     messages.success(request, f"{source.name} was duplicated.")
     return redirect("policies:detail", rule_id=duplicate.id)
 
 
 @login_required
 @require_POST
+@transaction.atomic
 def toggle_rule_action(request, rule_id):
     _require_writer(request)
     rule = _rule(request, rule_id)
     rule.enabled = not rule.enabled
     rule.version += 1
     rule.save(update_fields=("enabled", "version", "updated_at"))
+    append_audit_event(
+        organization_id=rule.organization_id,
+        actor_user_id=request.user.id,
+        event_type=EVENT_RULE_CHANGED,
+        entity_type="organization_rule",
+        entity_id=rule.id,
+        data={
+            "change": "enabled" if rule.enabled else "disabled",
+            "version": str(rule.version),
+        },
+    )
     messages.success(
         request, f"{rule.name} is now {'enabled' if rule.enabled else 'disabled'}."
     )
@@ -197,10 +239,22 @@ def toggle_rule_action(request, rule_id):
 
 @login_required
 @require_POST
+@transaction.atomic
 def delete_rule_action(request, rule_id):
     _require_writer(request)
     rule = _rule(request, rule_id)
     name = rule.name
+    append_audit_event(
+        organization_id=rule.organization_id,
+        actor_user_id=request.user.id,
+        event_type=EVENT_RULE_CHANGED,
+        entity_type="organization_rule",
+        entity_id=rule.id,
+        data={
+            "change": "deleted",
+            "version": str(rule.version),
+        },
+    )
     rule.delete()
     messages.success(request, f"{name} was deleted.")
     return redirect("policies:list")

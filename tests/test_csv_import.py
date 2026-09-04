@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from apps.audit.models import AuditEvent
 from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
@@ -110,6 +111,18 @@ def test_valid_csv_uses_all_three_steps_and_only_final_post_writes_inventory(
     assert batch.status == ImportBatch.Status.IMPORTED
     assert batch.imported_count == 1
     assert batch.rows.count() == 0
+    events = list(AuditEvent.objects.order_by("occurred_at", "id"))
+    assert [event.event_type for event in events] == [
+        "inventory.created",
+        "reconciliation.accepted",
+    ]
+    assert events[0].entity_id == item.id
+    assert events[0].data == {
+        "import_batch_id": str(batch.id),
+        "source_type": "csv",
+    }
+    assert events[1].entity_id == batch.id
+    assert events[1].data == {"imported_count": "1"}
 
 
 def test_invalid_row_uses_row_specific_business_language(client, import_context):

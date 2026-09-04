@@ -10,6 +10,8 @@ from typing import Any
 import rfc8785
 from django.db import transaction
 
+from apps.audit.append import append_audit_event
+from apps.audit.events import EVENT_ASSESSMENT_COMPLETED
 from apps.inventory.models import InventoryItem
 from apps.policies.context import inventory_policy_context
 from apps.policies.engine import ENGINE_VERSION, PolicyResult, evaluate_policies
@@ -297,7 +299,7 @@ def create_assessment_snapshot(
     }
     input_payload = _canonical_payload(input_payload)
     result_payload = _canonical_payload(result_payload)
-    return AssessmentSnapshot.objects.create(
+    snapshot = AssessmentSnapshot.objects.create(
         organization_id=organization_id,
         assessment_id=assessment_id,
         version=version,
@@ -308,3 +310,17 @@ def create_assessment_snapshot(
         input_sha256=canonical_sha256(input_payload),
         result_sha256=canonical_sha256(result_payload),
     )
+    append_audit_event(
+        organization_id=organization_id,
+        actor_user_id=created_by_id,
+        event_type=EVENT_ASSESSMENT_COMPLETED,
+        entity_type="assessment_snapshot",
+        entity_id=snapshot.id,
+        data={
+            "assessment_id": str(snapshot.assessment_id),
+            "input_sha256": snapshot.input_sha256,
+            "result_sha256": snapshot.result_sha256,
+            "version": str(snapshot.version),
+        },
+    )
+    return snapshot

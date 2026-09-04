@@ -157,25 +157,144 @@ Phase 12 evidence, 2026-09-04, local Django test client against PostgreSQL 18.6:
 
 ## Phase 13 — PostgreSQL background jobs
 
-- [ ] Durable jobs use PostgreSQL LISTEN/NOTIFY, SKIP LOCKED, claim tokens, leases, fencing, retry schedule, and recovery scans; Redis and Celery are absent.
-- [ ] Only the approved MVP job types are present; Microsoft and Google discovery jobs are absent.
-- [ ] Retry timing uses the locked database row, never caller-provided attempts.
-- [ ] Two workers racing for one job yield one winner.
-- [ ] An expired lease can be reclaimed by a second worker.
-- [ ] Stale-worker completion and failure are rejected.
-- [ ] A missed notification is recovered by periodic scanning.
-- [ ] A job created before LISTEN is found by the initial scan.
-- [ ] Jobs remain correct across concurrency, worker crash, connection restart, and missed notification.
+- [x] Durable jobs use PostgreSQL LISTEN/NOTIFY, SKIP LOCKED, claim tokens, leases, fencing, retry schedule, and recovery scans; Redis and Celery are absent.
+- [x] Only the approved MVP job types are present; Microsoft and Google discovery jobs are absent.
+- [x] Retry timing uses the locked database row, never caller-provided attempts.
+- [x] Two workers racing for one job yield one winner.
+- [x] An expired lease can be reclaimed by a second worker.
+- [x] Stale-worker completion and failure are rejected.
+- [x] A missed notification is recovered by periodic scanning.
+- [x] A job created before LISTEN is found by the initial scan.
+- [x] Jobs remain correct across concurrency, worker crash, connection restart, and missed notification.
+
+### Phase 13 Verification — VERIFIED 2026-09-04
+
+Environment:
+
+- Windows local development environment
+- Python 3.14.7
+- Django 5.2.17
+- PostgreSQL 18.6
+- restricted runtime roles exercised through `scripts/verify_rls.py`
+
+Verified implementation:
+
+- PostgreSQL is the durable job queue.
+- `LISTEN/NOTIFY` is a wake-up optimization rather than authoritative queue state.
+- Queue claiming uses `FOR UPDATE SKIP LOCKED`.
+- Claims use unique fencing tokens.
+- Running jobs use bounded leases and heartbeat renewal.
+- Expired leases are recoverable by another worker.
+- Stale workers cannot complete or fail a reclaimed job.
+- Retry timing is derived from the persisted database attempt count.
+- Fifth failure becomes terminal.
+- Initial scan recovers jobs created before LISTEN registration.
+- Periodic scans recover missed notifications and delayed work.
+- Listener reconnect behavior is verified.
+- Live PostgreSQL notification delivery is verified.
+- Runtime drains available jobs until empty.
+- Business preparation and persistence execute under tenant context.
+- External work executes outside the tenant database transaction.
+- Durable failure records contain safe summaries/fingerprints rather than exception secrets.
+
+Approved MVP job types only:
+
+- `risk_reassessment`
+- `report_generation`
+- `catalog_refresh`
+- `audit_batch_seal`
+
+Explicitly absent from the MVP queue:
+
+- Microsoft discovery jobs
+- Google discovery jobs
+- Redis
+- Celery
+
+Database security boundary verified:
+
+- `agentledger_app` queue visibility is tenant-scoped.
+- `agentledger_app` cannot insert jobs for another tenant.
+- `agentledger_app` cannot mutate queue execution state.
+- `agentledger_worker` may discover and claim queue work across tenants.
+- Global worker queue visibility does not grant cross-tenant access to business tables.
+- `background_jobs` uses forced PostgreSQL RLS.
+- queue table ownership remains `agentledger_owner`.
+
+Evidence:
+
+- focused Phase 13 queue/runtime and JSON hydration suite: 17 passed
+- restricted-role RLS suite: 22 passed
+- canonical repository suite: 196 passed
+- canonical coverage: 92.36%
+- Django system check: no issues
+- migrations: current, no unapplied Phase 13 migration
+
+Phase 13 status:
+
+**VERIFIED**
+
+Next authorized phase:
+
+**Phase 14 — Audit Events and Deterministic Merkle Sealing**
 
 ## Phase 14 — Audit events and Merkle sealing
 
-- [ ] All enumerated business and security-relevant events are recorded independently of later sealing.
-- [ ] Complete event envelopes use RFC 8785 canonicalization, domain-separated SHA-256, AL-MERKLE-1, tenant chain heads, block metadata, and a verification command.
-- [ ] Only the tenant's chain-head row is locked while sealing; different tenants can seal concurrently.
-- [ ] Modifying, deleting, or reordering a sealed event makes verification fail.
-- [ ] Concurrent same-tenant sealers produce one chain advancement.
-- [ ] Different tenants can seal concurrently.
-- [ ] UI claims only tamper evidence/valid verification, never magical immutability, blockchain protection, or unhackability.
+- [x] All enumerated business and security-relevant events are recorded independently of later sealing.
+- [x] Complete event envelopes use RFC 8785 canonicalization, domain-separated SHA-256, AL-MERKLE-1, tenant chain heads, block metadata, and a verification command.
+- [x] Only the tenant's chain-head row is locked while sealing; different tenants can seal concurrently.
+- [x] Modifying, deleting, or reordering a sealed event makes verification fail.
+- [x] Concurrent same-tenant sealers produce one chain advancement.
+- [x] Different tenants can seal concurrently.
+- [x] UI claims only tamper evidence/valid verification, never magical immutability, blockchain protection, or unhackability.
+
+Phase 14 verification date:
+
+**2026-09-04**
+
+Environment:
+
+- Windows local development environment
+- Python 3.14.7
+- Django 5.2.17
+- PostgreSQL 18.6
+- restricted application and worker roles provisioned through `scripts/verify_rls.py`
+
+Verified implementation:
+
+- `append_audit_event()` validates the exact event registry, UUIDs, string JSON keys, object-root payloads, binary-float exclusion, and complete RFC 8785-compatible event envelopes.
+- Audit insertion and `audit_batch_seal` enqueue occur in one tenant transaction without synchronous chain-head mutation.
+- Existing manual inventory create/edit/archive, CSV inventory import and final reconciliation acceptance, organization-rule create/edit/duplicate/toggle/delete, and assessment completion actions emit their applicable exact audit events atomically with business state.
+- Excluded discovery, connector, and Phase 15 report behavior remains unwired; its event vocabulary is reserved only.
+- `AL-MERKLE-1` uses RFC 8785, domain-separated SHA-256 leaf/node/block hashes, deterministic largest-power-of-two splitting, and `AL-BLOCK-1` envelopes.
+- Sealing orders events by `occurred_at ASC, id ASC`, locks only the tenant chain head, caps blocks at 1,000 events, writes seal metadata once, and advances the tenant-local block-hash chain atomically.
+- Audit persistence requests PostgreSQL `REPEATABLE READ` before tenant activation. A synchronized two-transaction specimen proves an event committed after Transaction A's snapshot remains unsealed until block N+1.
+- Same-tenant concurrent sealers advance the chain once; different tenants seal successfully in parallel.
+- Forced RLS and restricted grants protect audit events, blocks, and chain heads. Runtime roles cannot alter committed event fields, rewrite sealed metadata, or update/delete Merkle blocks.
+- `verify_audit` and `verify_tenant_audit_history()` return only `VALID`, `INVALID`, or `INCOMPLETE` and recalculate complete event envelopes, leaf hashes, Merkle roots, block envelopes/hashes, links, sequence continuity, membership/order, and the chain head.
+- Privileged test-only tampering proves modification and reordering return `INVALID`; deletion returns `INCOMPLETE`. Production triggers remain enabled and unchanged after each specimen.
+- No audit UI makes an immutability, blockchain, unmodifiable, impossible-to-alter, or unhackability claim. The verification command accurately describes local history as tamper-evident.
+
+Evidence:
+
+- focused Phase 14 regression across audit, jobs, RLS, inventory, CSV, rules, and snapshots: 149 passed
+- snapshot and concurrent-sealing specimens: 3 passed
+- verifier status, command, and tamper specimens: 6 passed
+- dedicated restricted-role audit RLS suite: 10 passed
+- canonical repository suite through `scripts/test.ps1`: 286 passed
+- canonical branch coverage: 91.80%
+- Ruff format and lint checks: passed
+- Django system check: no issues
+- migration drift: none
+- durable repository evidence: `apps/audit/`, `apps/jobs/`, `src/agentledger/tenancy/context.py`, applicable business-action views/services, and Phase 14 tests under `tests/`
+
+Phase 14 status:
+
+**VERIFIED**
+
+Next authorized phase:
+
+**Phase 15 — Canonical Browser Reporting**
 
 ## Phase 15 — Canonical browser reporting
 

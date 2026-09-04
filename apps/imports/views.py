@@ -9,6 +9,11 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.audit.append import append_audit_event
+from apps.audit.events import (
+    EVENT_INVENTORY_CREATED,
+    EVENT_RECONCILIATION_ACCEPTED,
+)
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import OrganizationMember
 
@@ -203,19 +208,37 @@ def confirm_import_action(request, batch_id):
         rows = list(batch.rows.select_for_update())
         if batch.status != ImportBatch.Status.READY or any(row.errors for row in rows):
             raise PermissionDenied("This spreadsheet is not ready for final approval.")
-        InventoryItem.objects.bulk_create(
-            [
-                InventoryItem(
-                    organization_id=_organization_id(request),
-                    source_type=InventoryItem.SourceType.CSV,
-                    **row.data,
-                )
-                for row in rows
-            ]
+        items = InventoryItem.objects.bulk_create(
+            InventoryItem(
+                organization_id=_organization_id(request),
+                source_type=InventoryItem.SourceType.CSV,
+                **row.data,
+            )
+            for row in rows
         )
+        for item in items:
+            append_audit_event(
+                organization_id=item.organization_id,
+                actor_user_id=request.user.id,
+                event_type=EVENT_INVENTORY_CREATED,
+                entity_type="inventory_item",
+                entity_id=item.id,
+                data={
+                    "import_batch_id": str(batch.id),
+                    "source_type": item.source_type,
+                },
+            )
         batch.status = ImportBatch.Status.IMPORTED
         batch.imported_count = len(rows)
         batch.save(update_fields=("status", "imported_count", "updated_at"))
+        append_audit_event(
+            organization_id=batch.organization_id,
+            actor_user_id=request.user.id,
+            event_type=EVENT_RECONCILIATION_ACCEPTED,
+            entity_type="import_batch",
+            entity_id=batch.id,
+            data={"imported_count": str(batch.imported_count)},
+        )
         batch.rows.all().delete()
     messages.success(request, f"Added {batch.imported_count} software items.")
     return redirect("inventory:list")

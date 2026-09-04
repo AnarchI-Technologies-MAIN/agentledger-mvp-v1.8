@@ -20,6 +20,7 @@ from apps.assessments.snapshots import canonical_sha256
 from apps.catalog.models import Product, Vendor
 from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
+from apps.jobs.models import BackgroundJob
 from apps.organizations.models import Organization, OrganizationMember
 from apps.policies.models import OrganizationRule
 
@@ -84,6 +85,7 @@ def isolation_fixture():
     yield fixture
     with connections["default"].cursor() as cursor:
         cursor.execute("TRUNCATE TABLE assessment_snapshots")
+    BackgroundJob.objects.all().delete()
     OrganizationRule.objects.all().delete()
     InventoryItem.objects.all().delete()
     OrganizationMember.objects.all().delete()
@@ -175,6 +177,10 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
         )
         assert cursor.fetchall() == [
             ("assessment_snapshots", True, True, True),
+            ("audit_chain_heads", True, True, True),
+            ("audit_events", True, True, True),
+            ("audit_merkle_blocks", True, True, True),
+            ("background_jobs", True, True, True),
             ("inventory_import_batches", True, True, True),
             ("inventory_import_rows", True, True, True),
             ("inventory_items", True, True, True),
@@ -456,3 +462,142 @@ def test_csv_staging_is_tenant_isolated_under_app_role(isolation_fixture):
                 )
 
     assert_insufficient_privilege(captured)
+
+
+def test_background_jobs_are_tenant_scoped_for_app_runtime(isolation_fixture):
+    from apps.jobs.models import BackgroundJob
+    from apps.jobs.queue import enqueue_job
+
+    fixture = isolation_fixture
+
+    job_a = enqueue_job(
+        organization_id=fixture.organization_a_id,
+        job_type=BackgroundJob.Type.RISK_REASSESSMENT,
+        payload={"tenant": "A"},
+    )
+    enqueue_job(
+        organization_id=fixture.organization_b_id,
+        job_type=BackgroundJob.Type.REPORT_GENERATION,
+        payload={"tenant": "B"},
+    )
+
+    with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+        visible_ids = set(
+            BackgroundJob.objects.using("app_runtime").values_list("id", flat=True)
+        )
+
+    assert visible_ids == {job_a.id}
+
+
+def test_app_runtime_cannot_insert_background_job_for_another_tenant(
+    isolation_fixture,
+):
+    from apps.jobs.models import BackgroundJob
+
+    fixture = isolation_fixture
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            BackgroundJob.objects.using("app_runtime").create(
+                organization_id=fixture.organization_b_id,
+                job_type=BackgroundJob.Type.RISK_REASSESSMENT,
+                payload={"forbidden": True},
+            )
+
+    assert_insufficient_privilege(captured)
+
+
+def test_app_runtime_has_no_background_job_update_authority(isolation_fixture):
+    from apps.jobs.models import BackgroundJob
+    from apps.jobs.queue import enqueue_job
+
+    fixture = isolation_fixture
+
+    job = enqueue_job(
+        organization_id=fixture.organization_a_id,
+        job_type=BackgroundJob.Type.RISK_REASSESSMENT,
+        payload={"tenant": "A"},
+    )
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            BackgroundJob.objects.using("app_runtime").filter(pk=job.id).update(
+                priority=1
+            )
+
+    assert_insufficient_privilege(captured)
+
+
+def test_worker_runtime_can_claim_across_tenants_without_tenant_context(
+    isolation_fixture,
+):
+    from apps.jobs.models import BackgroundJob
+    from apps.jobs.queue import claim_next_job, enqueue_job
+
+    fixture = isolation_fixture
+
+    first_job = enqueue_job(
+        organization_id=fixture.organization_a_id,
+        job_type=BackgroundJob.Type.RISK_REASSESSMENT,
+        payload={"tenant": "A"},
+        priority=10,
+    )
+    second_job = enqueue_job(
+        organization_id=fixture.organization_b_id,
+        job_type=BackgroundJob.Type.REPORT_GENERATION,
+        payload={"tenant": "B"},
+        priority=20,
+    )
+
+    first_claim = claim_next_job(
+        "worker-rls",
+        using="worker_runtime",
+    )
+    second_claim = claim_next_job(
+        "worker-rls",
+        using="worker_runtime",
+    )
+
+    assert first_claim is not None
+    assert second_claim is not None
+
+    assert first_claim.id == first_job.id
+    assert first_claim.organization_id == fixture.organization_a_id
+
+    assert second_claim.id == second_job.id
+    assert second_claim.organization_id == fixture.organization_b_id
+
+
+def test_worker_queue_scope_does_not_unlock_business_table_scope(
+    isolation_fixture,
+):
+    from apps.jobs.models import BackgroundJob
+    from apps.jobs.queue import enqueue_job
+
+    fixture = isolation_fixture
+
+    enqueue_job(
+        organization_id=fixture.organization_a_id,
+        job_type=BackgroundJob.Type.RISK_REASSESSMENT,
+        payload={"tenant": "A"},
+    )
+    enqueue_job(
+        organization_id=fixture.organization_b_id,
+        job_type=BackgroundJob.Type.REPORT_GENERATION,
+        payload={"tenant": "B"},
+    )
+
+    queue_organizations = set(
+        BackgroundJob.objects.using("worker_runtime").values_list(
+            "organization_id",
+            flat=True,
+        )
+    )
+
+    assert queue_organizations == {
+        fixture.organization_a_id,
+        fixture.organization_b_id,
+    }
+
+    with tenant_transaction(fixture.organization_a_id, using="worker_runtime"):
+        assert raw_inventory_ids("worker_runtime") == {fixture.item_a_id}

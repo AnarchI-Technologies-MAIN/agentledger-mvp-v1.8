@@ -10,6 +10,9 @@ from django.db import connections, transaction
 USER_CONTEXT = "app.current_user_id"
 TENANT_CONTEXT = "app.current_organization_id"
 _ALLOWED_CONTEXTS = frozenset({USER_CONTEXT, TENANT_CONTEXT})
+_ISOLATION_SQL = {
+    "repeatable_read": ("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"),
+}
 
 
 def _uuid_text(value: Any) -> str:
@@ -57,7 +60,17 @@ def tenant_transaction(
     organization_id: Any,
     *,
     using: str = "default",
+    isolation: str | None = None,
 ) -> Iterator[None]:
     with transaction.atomic(using=using):
+        if isolation is not None:
+            try:
+                isolation_sql = _ISOLATION_SQL[isolation]
+            except KeyError as error:
+                raise ValueError("Unsupported transaction isolation level") from error
+
+            with connections[using].cursor() as cursor:
+                cursor.execute(isolation_sql)
+
         activate_tenant(organization_id, using=using)
         yield
