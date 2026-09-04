@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Log in — AgentLedger{% endblock %}
+
+{% block content %}
+  <section class="card narrow-card">
+    <p class="eyebrow">Secure firm workspace</p>
+    <h1>Log in to AgentLedger</h1>
+    <p>Use the email address provided during founder-assisted onboarding.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="error" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <label for="{{ form.username.id_for_label }}">Email address</label>
+      {{ form.username }}
+      {{ form.username.errors }}
+      <label for="{{ form.password.id_for_label }}">Password</label>
+      {{ form.password }}
+      {{ form.password.errors }}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="button" type="submit">Log in</button>
+    </form>
+    <p class="muted">AgentLedger is currently invite only. There is no public signup.</p>
+  </section>
+{% endblock %}

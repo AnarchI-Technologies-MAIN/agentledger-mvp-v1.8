@@ -87,7 +87,16 @@ class BaselineTests(SimpleTestCase):
             }
         )
         completed = subprocess.run(
-            [sys.executable, "-c", "import agentledger.settings.production"],
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import os; "
+                    "os.environ['DJANGO_SETTINGS_MODULE']="
+                    "'agentledger.settings.production'; "
+                    "import django; django.setup()"
+                ),
+            ],
             cwd=os.getcwd(),
             env=environment,
             capture_output=True,

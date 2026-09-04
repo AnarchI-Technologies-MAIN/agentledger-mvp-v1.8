@@ -1,8 +1,17 @@
-from django.urls import path
+from django.shortcuts import redirect
+from django.urls import include, path
 
 from .health import healthz, readyz
+
+
+def home_redirect(request):
+    return redirect("organizations:workspace-selection")
+
 
 urlpatterns = [
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
+    path("accounts/", include("apps.accounts.urls")),
+    path("workspaces/", include("apps.organizations.urls")),
+    path("", home_redirect),
 ]

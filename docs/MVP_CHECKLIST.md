@@ -36,15 +36,17 @@ Phase 1 evidence, 2026-09-04: a Git-metadata-free clean source copy installed 31
 
 ## Phase 2 — Custom user, organization, and tenant control plane
 
-- [ ] The custom email-based User model exists before the first permanent migration and uses UUID primary keys where specified.
-- [ ] Organization and OrganizationMember support owner, admin, assessor, and viewer roles and the enumerated industries.
-- [ ] User A belongs to Firm A and User B belongs to Firm B in the canonical isolation fixture.
-- [ ] User A cannot activate Firm B.
-- [ ] A malformed workspace UUID produces a safe response and never a server error.
-- [ ] A valid user can switch between two organizations to which that user legitimately belongs.
-- [ ] Workspace activation is POST-only, CSRF-protected, and revalidates membership before setting organization context.
-- [ ] User and organization context setters are alias-aware and transaction-local; no persistent session-level tenant setting is used.
-- [ ] Logout clears the active organization state.
+- [x] The custom email-based User model exists before the first permanent migration and uses UUID primary keys where specified.
+- [x] Organization and OrganizationMember support owner, admin, assessor, and viewer roles and the enumerated industries.
+- [x] User A belongs to Firm A and User B belongs to Firm B in the canonical isolation fixture.
+- [x] User A cannot activate Firm B.
+- [x] A malformed workspace UUID produces a safe response and never a server error.
+- [x] A valid user can switch between two organizations to which that user legitimately belongs.
+- [x] Workspace activation is POST-only, CSRF-protected, and revalidates membership before setting organization context.
+- [x] User and organization context setters are alias-aware and transaction-local; no persistent session-level tenant setting is used.
+- [x] Logout clears the active organization state.
+
+Phase 2 evidence, 2026-09-04, local development against the isolated PostgreSQL 18.6 service: the initial `accounts`, `organizations`, `auth`, and `sessions` migrations applied successfully; `python manage.py makemigrations --check --dry-run` reported no model drift; Ruff format and lint gates passed; and 31 pytest tests passed with 94.19% branch coverage. The automated suite includes case-insensitive email identity and uniqueness, the canonical Firm A/Firm B membership fixture, cross-firm activation denial with session clearing, malformed UUID denial, POST-only and CSRF enforcement, membership revalidation, legitimate two-firm switching, logout state clearing, transaction-local PostgreSQL settings, context-name allowlisting, and explicit database-alias routing.
 
 ## Phase 3 — PostgreSQL row-level security (release blocking)
 
