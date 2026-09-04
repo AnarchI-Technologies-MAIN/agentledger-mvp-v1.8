@@ -10,6 +10,8 @@ from django.db.models import Q
 from apps.assessments.models import AssessmentSnapshot
 from apps.organizations.models import Organization
 
+from .storage import PDF_CONTENT_TYPE, SHA256_PATTERN
+
 
 class Report(models.Model):
     id = models.UUIDField(
@@ -75,3 +77,93 @@ class Report(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Report identity records are immutable")
+
+
+class ReportArtifact(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="report_artifacts",
+    )
+    report = models.OneToOneField(
+        Report,
+        on_delete=models.PROTECT,
+        related_name="artifact",
+    )
+    assessment_snapshot = models.ForeignKey(
+        AssessmentSnapshot,
+        on_delete=models.PROTECT,
+        related_name="report_artifacts",
+    )
+    object_key = models.CharField(
+        max_length=512,
+        unique=True,
+        editable=False,
+    )
+    content_type = models.CharField(
+        max_length=100,
+        default=PDF_CONTENT_TYPE,
+        editable=False,
+    )
+    sha256 = models.CharField(
+        max_length=64,
+        editable=False,
+    )
+    size_bytes = models.PositiveBigIntegerField(editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+
+    class Meta:
+        db_table = "report_artifacts"
+        ordering = ("-created_at",)
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(size_bytes__gte=1),
+                name="report_artifact_size_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("organization", "created_at"),
+                name="artifact_org_created_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.object_key
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Report artifact metadata is immutable")
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Report artifact metadata is immutable")
+
+    def clean(self):
+        super().clean()
+
+        if self.content_type != PDF_CONTENT_TYPE:
+            raise ValidationError(
+                {"content_type": "Report artifacts must use application/pdf"}
+            )
+
+        if not SHA256_PATTERN.fullmatch(self.sha256):
+            raise ValidationError(
+                {"sha256": "Report artifact SHA-256 must be lowercase hexadecimal"}
+            )
+
+        if self.report_id and self.organization_id:
+            if self.report.organization_id != self.organization_id:
+                raise ValidationError("Report artifact tenant does not match report")
+
+        if self.report_id and self.assessment_snapshot_id:
+            if self.report.assessment_snapshot_id != self.assessment_snapshot_id:
+                raise ValidationError(
+                    "Report artifact snapshot does not match report snapshot"
+                )

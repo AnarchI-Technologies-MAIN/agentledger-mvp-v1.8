@@ -15,3 +15,7 @@ for alias, environment_name in (
     if database_url:
         DATABASES[alias] = database_from_url(database_url)
         DATABASES[alias]["TEST"] = {"MIRROR": "default"}
+
+REPORTS_LOCAL_STORAGE_ROOT = BASE_DIR / ".private-reports"
+
+REPORTS_STORAGE_BACKEND = "local"

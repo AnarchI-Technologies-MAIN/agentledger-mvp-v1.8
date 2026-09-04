@@ -418,13 +418,38 @@ Next authorized phase:
 
 ## Phase 17 — Private report storage
 
-- [ ] PDFs and future exports/certificates are stored in the private `reports` object bucket, never ephemeral application storage.
-- [ ] PostgreSQL records object key, content type, SHA-256, size, report ID, creation time, and assessment snapshot ID.
-- [ ] Object keys use organization/assessment/report scoping and are never sufficient authorization.
-- [ ] Authenticated membership, tenant RLS, and report ownership are checked before a short-lived presigned GET or authenticated proxy response.
-- [ ] Tenant A cannot retrieve Tenant B's report even with Tenant B's report UUID and object key.
-- [ ] Before customer data, the absence of bucket API server-side-encryption controls, versioning, object locks, and lifecycle rules in current Railway documentation has a documented, owner-approved security disposition.
+- [x] PDFs and future exports/certificates are stored in the private `reports` object bucket, never ephemeral application storage.
+- [x] PostgreSQL records object key, content type, SHA-256, size, report ID, creation time, and assessment snapshot ID.
+- [x] Object keys use organization/assessment/report scoping and are never sufficient authorization.
+- [x] Authenticated membership, tenant RLS, and report ownership are checked before a short-lived presigned GET or authenticated proxy response.
+- [x] Tenant A cannot retrieve Tenant B's report even with Tenant B's report UUID and object key.
+- [x] Before customer data, the absence of bucket API server-side-encryption controls, versioning, object locks, and lifecycle rules in current Railway documentation has a documented, owner-approved security disposition.
 
+**Phase 17 verification — VERIFIED 2026-09-04**
+
+- Canonical repository suite: 334/334 passed.
+- Canonical coverage: 88.60%, above the required 80% threshold.
+- Report artifact RLS regression: 26/26 passed under the restricted-role harness.
+- Restricted worker regression: 11/11 passed under the restricted-role harness.
+- Phase 17 focused storage/report-generation suite: 27/27 passed.
+- Final report-generation enqueue seam regression: 10/10 passed.
+- The authenticated Generate action now schedules `REPORT_GENERATION` with the exact payload `{"report_id": "<uuid>"}`.
+- Report-generation scheduling is report-scoped and idempotent for queued/running work: repeated Generate requests reuse the active job rather than creating duplicate PDF jobs.
+- If an immutable report artifact already exists, no additional generation job is scheduled.
+- A terminal failed generation job does not permanently poison the report; a later authorized Generate action may enqueue a fresh attempt.
+- Production-settings regression: 1/1 passed after updating the explicit production configuration fixture for the required private-report storage and renderer variables.
+- Django system check: clean.
+- Migration drift: none.
+- Ruff format: clean.
+- Ruff lint: clean.
+- `git diff --check`: clean.
+- Production report storage is fail-closed when required bucket or renderer configuration is absent.
+- Report artifacts use deterministic organization/assessment/report-scoped keys, persisted SHA-256 and byte-size metadata, authenticated delivery, tenant RLS, and ownership checks.
+- Renderer execution receives no report-bucket credentials.
+- Live Railway bucket creation, credentials, and production connectivity remain a Phase 20 deployment proof and are not claimed by this local Phase 17 verification.
+- Owner security disposition approved 2026-09-04 for the founder-assisted MVP regarding Railway bucket API/documentation limitations around application-configurable server-side-encryption controls, versioning, object locks, and lifecycle rules. This acceptance does not claim Railway lacks encryption at rest or that report objects are immutable. The disposition must be revisited before broader production use if customer, contractual, regulatory, or compliance requirements require those controls.
+- Fresh official Railway Storage Buckets documentation verification on 2026-09-04 explicitly lists server-side encryption, object versioning, object locks, and bucket lifecycle configuration as not yet supported.
+- The same current Railway documentation confirms buckets are private and supports authorized delivery through presigned URLs or backend proxy responses.
 ## Phase 18 — Credential cryptography module
 
 - [ ] The connector-ready module implements versioned KEKs, per-record DEKs, AES-256-GCM, tenant/record AAD binding, normal rotation, and compromised-key rotation without creating production OAuth credentials.

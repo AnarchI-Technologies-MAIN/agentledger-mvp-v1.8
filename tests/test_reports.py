@@ -5,14 +5,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
 from django.urls import reverse
 
 from apps.assessments.snapshots import create_assessment_snapshot
 from apps.audit.models import AuditEvent
-from apps.inventory.models import InventoryItem
+from apps.jobs.models import BackgroundJob
 from apps.organizations.models import Organization, OrganizationMember
 from apps.reports.context import (
     REPORT_CONTEXT_VERSION,
@@ -52,45 +51,6 @@ def roi_inputs():
             AssumptionProvenance.MEASURED,
         ),
     )
-
-
-@pytest.fixture
-def report_context(client):
-    user = get_user_model().objects.create_user("reports@example.com")
-    organization = Organization.objects.create(name="Report Firm")
-    membership = OrganizationMember.objects.create(
-        user=user,
-        organization=organization,
-        role=OrganizationMember.Role.OWNER,
-    )
-    item = InventoryItem.objects.create(
-        organization=organization,
-        display_name="Payroll Assistant",
-        vendor_name="Example Vendor",
-        department="Bookkeeping",
-        monthly_cost_cents=10000,
-        data_categories=["payroll"],
-        capabilities=["external_transfer"],
-        human_approval=False,
-    )
-    snapshot = create_assessment_snapshot(
-        organization_id=organization.id,
-        created_by_id=user.id,
-        assessed_item_id=item.id,
-        roi_inputs=roi_inputs(),
-        captured_at=datetime(2026, 9, 3, 12, 0, tzinfo=UTC),
-        evidence_references=(
-            {
-                "reference": "EVIDENCE-1",
-                "type": "customer_statement",
-            },
-        ),
-    )
-    client.force_login(user)
-    session = client.session
-    session["active_organization_id"] = str(organization.id)
-    session.save()
-    return user, organization, membership, item, snapshot
 
 
 def test_report_identifier_uses_the_accepted_sequence_format():
@@ -218,6 +178,15 @@ def test_browser_report_uses_canonical_context_and_safe_claims(
     report = Report.objects.get()
     assert response.url == reverse("reports:detail", args=(report.id,))
 
+    generation_job = BackgroundJob.objects.get(
+        organization_id=report.organization_id,
+        job_type=BackgroundJob.Type.REPORT_GENERATION,
+    )
+    assert generation_job.status == BackgroundJob.Status.QUEUED
+    assert generation_job.payload == {
+        "report_id": str(report.id),
+    }
+
     page = client.get(response.url)
     assert page.status_code == 200
     assert page.context["report"] == build_report_context(report)
@@ -241,6 +210,40 @@ def test_browser_report_uses_canonical_context_and_safe_claims(
     lowered = page.content.lower()
     assert b"certified compliant" not in lowered
     assert b"guaranteed secure" not in lowered
+
+
+def test_repeated_report_generation_reuses_one_active_generation_job(
+    client,
+    report_context,
+):
+    _user, organization, _membership, _item, snapshot = report_context
+    generate_url = reverse("reports:generate", args=(snapshot.id,))
+
+    first = client.post(generate_url)
+    second = client.post(generate_url)
+
+    assert first.status_code == 302
+    assert second.status_code == 302
+
+    report = Report.objects.get(
+        organization_id=organization.id,
+        assessment_snapshot_id=snapshot.id,
+    )
+
+    assert first.url == reverse("reports:detail", args=(report.id,))
+    assert second.url == first.url
+
+    generation_jobs = BackgroundJob.objects.filter(
+        organization_id=organization.id,
+        job_type=BackgroundJob.Type.REPORT_GENERATION,
+        payload={"report_id": str(report.id)},
+        status__in=(
+            BackgroundJob.Status.QUEUED,
+            BackgroundJob.Status.RUNNING,
+        ),
+    )
+
+    assert generation_jobs.count() == 1
 
 
 def test_report_routes_are_tenant_scoped_and_generation_is_post_only(

@@ -82,7 +82,7 @@ def test_resolver_rejects_unimplemented_job_types():
         match="No job handler is registered",
     ):
         resolver(
-            BackgroundJob.Type.REPORT_GENERATION,
+            BackgroundJob.Type.CATALOG_REFRESH,
         )
 
 

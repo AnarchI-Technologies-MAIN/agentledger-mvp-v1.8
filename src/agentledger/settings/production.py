@@ -46,3 +46,45 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+# Private report object storage.
+REPORTS_STORAGE_BACKEND = "s3"
+
+REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "")
+REPORTS_BUCKET_ENDPOINT = os.getenv("REPORTS_BUCKET_ENDPOINT", "")
+REPORTS_BUCKET_ACCESS_KEY_ID = os.getenv(
+    "REPORTS_BUCKET_ACCESS_KEY_ID",
+    "",
+)
+REPORTS_BUCKET_SECRET_ACCESS_KEY = os.getenv(
+    "REPORTS_BUCKET_SECRET_ACCESS_KEY",
+    "",
+)
+REPORTS_BUCKET_REGION = os.getenv(
+    "REPORTS_BUCKET_REGION",
+    "auto",
+)
+REPORTS_BUCKET_URL_STYLE = os.getenv(
+    "REPORTS_BUCKET_URL_STYLE",
+    "virtual",
+)
+
+for variable_name, value in (
+    ("REPORTS_BUCKET_NAME", REPORTS_BUCKET_NAME),
+    ("REPORTS_BUCKET_ENDPOINT", REPORTS_BUCKET_ENDPOINT),
+    ("REPORTS_BUCKET_ACCESS_KEY_ID", REPORTS_BUCKET_ACCESS_KEY_ID),
+    (
+        "REPORTS_BUCKET_SECRET_ACCESS_KEY",
+        REPORTS_BUCKET_SECRET_ACCESS_KEY,
+    ),
+):
+    if not value:
+        raise ImproperlyConfigured(f"{variable_name} must be present in production")
+
+if REPORTS_BUCKET_URL_STYLE not in {"virtual", "path"}:
+    raise ImproperlyConfigured("REPORTS_BUCKET_URL_STYLE must be virtual or path")
+
+REPORT_RENDERER_URL = os.getenv("REPORT_RENDERER_URL", "")
+if not REPORT_RENDERER_URL:
+    raise ImproperlyConfigured("REPORT_RENDERER_URL must be present in production")
+
+REPORT_RENDERER_TIMEOUT_SECONDS = 70

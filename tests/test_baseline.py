@@ -83,6 +83,13 @@ class BaselineTests(SimpleTestCase):
                 "DATABASE_URL": "postgresql://app:secret@db.internal/agentledger",
                 "ALLOWED_HOSTS": "agentledger.example",
                 "CSRF_TRUSTED_ORIGINS": "https://agentledger.example",
+                "REPORTS_BUCKET_NAME": "agentledger-test-reports",
+                "REPORTS_BUCKET_ENDPOINT": "https://storage.railway.app",
+                "REPORTS_BUCKET_ACCESS_KEY_ID": "test-access-key",
+                "REPORTS_BUCKET_SECRET_ACCESS_KEY": "test-secret-key",
+                "REPORTS_BUCKET_REGION": "auto",
+                "REPORTS_BUCKET_URL_STYLE": "virtual",
+                "REPORT_RENDERER_URL": "http://renderer:8080",
                 "PYTHONPATH": os.pathsep.join(["src", "."]),
             }
         )

@@ -4,6 +4,7 @@ version = "0.1.0.dev0"
 description = "Deterministic AI software risk and ROI assessments for bookkeeping firms"
 requires-python = ">=3.14.7,<3.15"
 dependencies = [
+    "boto3>=1.40,<2",
     "cryptography==50.0.1",
     "django>=5.2.13,<5.3",
     "gunicorn>=23,<24",

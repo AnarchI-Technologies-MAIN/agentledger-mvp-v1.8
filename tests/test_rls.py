@@ -23,8 +23,9 @@ from apps.inventory.models import InventoryItem
 from apps.jobs.models import BackgroundJob
 from apps.organizations.models import Organization, OrganizationMember
 from apps.policies.models import OrganizationRule
-from apps.reports.models import Report
+from apps.reports.models import Report, ReportArtifact
 from apps.reports.services import create_report
+from apps.reports.storage import build_pdf_object_key
 
 pytestmark = [
     pytest.mark.rls,
@@ -192,6 +193,7 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             ("inventory_items", True, True, True),
             ("organization_rules", True, True, True),
             ("organizations_organizationmember", True, True, True),
+            ("report_artifacts", True, True, True),
             ("reports", True, True, True),
         ]
         cursor.execute(
@@ -759,3 +761,343 @@ def test_worker_queue_scope_does_not_unlock_business_table_scope(
 
     with tenant_transaction(fixture.organization_a_id, using="worker_runtime"):
         assert raw_inventory_ids("worker_runtime") == {fixture.item_a_id}
+
+
+def test_report_artifacts_are_tenant_isolated_and_runtime_immutable(
+    isolation_fixture,
+):
+    fixture = isolation_fixture
+
+    def make_snapshot(organization_id, user_id, label):
+        payload = {"tenant": label}
+        return AssessmentSnapshot.objects.create(
+            organization_id=organization_id,
+            created_by_id=user_id,
+            captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+            input_payload=payload,
+            result_payload=payload,
+            input_sha256=canonical_sha256(payload),
+            result_sha256=canonical_sha256(payload),
+        )
+
+    def make_report(
+        organization_id,
+        user_id,
+        snapshot,
+        sequence,
+        identifier,
+        organization_name,
+    ):
+        return Report.objects.create(
+            organization_id=organization_id,
+            assessment_snapshot=snapshot,
+            sequence=sequence,
+            identifier_year=2026,
+            report_identifier=identifier,
+            organization_display_name=organization_name,
+            created_by_id=user_id,
+        )
+
+    snapshot_a = make_snapshot(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        "artifact-a",
+    )
+    snapshot_b = make_snapshot(
+        fixture.organization_b_id,
+        fixture.user_b_id,
+        "artifact-b",
+    )
+    snapshot_app_insert = make_snapshot(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        "artifact-app-insert",
+    )
+    snapshot_worker_insert = make_snapshot(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        "artifact-worker-insert",
+    )
+    snapshot_cross_tenant = make_snapshot(
+        fixture.organization_b_id,
+        fixture.user_b_id,
+        "artifact-cross-tenant",
+    )
+
+    report_a = make_report(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        snapshot_a,
+        910001,
+        "AL-2026-910001",
+        "RLS Firm A",
+    )
+    report_b = make_report(
+        fixture.organization_b_id,
+        fixture.user_b_id,
+        snapshot_b,
+        910002,
+        "AL-2026-910002",
+        "RLS Firm B",
+    )
+    report_app_insert = make_report(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        snapshot_app_insert,
+        910003,
+        "AL-2026-910003",
+        "RLS Firm A",
+    )
+    report_worker_insert = make_report(
+        fixture.organization_a_id,
+        fixture.user_a_id,
+        snapshot_worker_insert,
+        910004,
+        "AL-2026-910004",
+        "RLS Firm A",
+    )
+    report_cross_tenant = make_report(
+        fixture.organization_b_id,
+        fixture.user_b_id,
+        snapshot_cross_tenant,
+        910005,
+        "AL-2026-910005",
+        "RLS Firm B",
+    )
+
+    artifact_a = ReportArtifact.objects.create(
+        organization_id=fixture.organization_a_id,
+        report=report_a,
+        assessment_snapshot=snapshot_a,
+        object_key=build_pdf_object_key(
+            organization_id=fixture.organization_a_id,
+            assessment_snapshot_id=snapshot_a.id,
+            report_id=report_a.id,
+        ),
+        content_type="application/pdf",
+        sha256="a" * 64,
+        size_bytes=100,
+    )
+
+    artifact_b = ReportArtifact.objects.create(
+        organization_id=fixture.organization_b_id,
+        report=report_b,
+        assessment_snapshot=snapshot_b,
+        object_key=build_pdf_object_key(
+            organization_id=fixture.organization_b_id,
+            assessment_snapshot_id=snapshot_b.id,
+            report_id=report_b.id,
+        ),
+        content_type="application/pdf",
+        sha256="b" * 64,
+        size_bytes=200,
+    )
+
+    # ------------------------------------------------------------
+    # App role: Tenant A can read only Tenant A.
+    # Tenant B remains hidden even with its exact UUID/object key.
+    # ------------------------------------------------------------
+
+    with tenant_transaction(
+        fixture.organization_a_id,
+        using="app_runtime",
+    ):
+        visible_ids = set(
+            ReportArtifact.objects.using("app_runtime").values_list(
+                "id",
+                flat=True,
+            )
+        )
+
+        assert visible_ids == {artifact_a.id}
+
+        assert (
+            not ReportArtifact.objects.using("app_runtime")
+            .filter(id=artifact_b.id)
+            .exists()
+        )
+
+        assert (
+            not ReportArtifact.objects.using("app_runtime")
+            .filter(object_key=artifact_b.object_key)
+            .exists()
+        )
+
+    # ------------------------------------------------------------
+    # App role: INSERT is denied.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="app_runtime",
+        ):
+            ReportArtifact.objects.using("app_runtime").create(
+                organization_id=fixture.organization_a_id,
+                report_id=report_app_insert.id,
+                assessment_snapshot_id=snapshot_app_insert.id,
+                object_key=build_pdf_object_key(
+                    organization_id=fixture.organization_a_id,
+                    assessment_snapshot_id=snapshot_app_insert.id,
+                    report_id=report_app_insert.id,
+                ),
+                content_type="application/pdf",
+                sha256="c" * 64,
+                size_bytes=300,
+            )
+
+    assert_insufficient_privilege(captured)
+
+    # ------------------------------------------------------------
+    # App role: UPDATE is denied.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="app_runtime",
+        ):
+            ReportArtifact.objects.using("app_runtime").filter(id=artifact_a.id).update(
+                size_bytes=999
+            )
+
+    assert_insufficient_privilege(captured)
+
+    # ------------------------------------------------------------
+    # App role: DELETE is denied.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="app_runtime",
+        ):
+            ReportArtifact.objects.using("app_runtime").filter(
+                id=artifact_a.id
+            ).delete()
+
+    assert_insufficient_privilege(captured)
+
+    # ------------------------------------------------------------
+    # Worker role: Tenant A can read Tenant A and insert a new
+    # artifact inside Tenant A.
+    # ------------------------------------------------------------
+
+    with tenant_transaction(
+        fixture.organization_a_id,
+        using="worker_runtime",
+    ):
+        assert set(
+            ReportArtifact.objects.using("worker_runtime").values_list(
+                "id",
+                flat=True,
+            )
+        ) == {artifact_a.id}
+
+        worker_artifact = ReportArtifact.objects.using("worker_runtime").create(
+            organization_id=fixture.organization_a_id,
+            report_id=report_worker_insert.id,
+            assessment_snapshot_id=snapshot_worker_insert.id,
+            object_key=build_pdf_object_key(
+                organization_id=fixture.organization_a_id,
+                assessment_snapshot_id=snapshot_worker_insert.id,
+                report_id=report_worker_insert.id,
+            ),
+            content_type="application/pdf",
+            sha256="d" * 64,
+            size_bytes=400,
+        )
+
+        assert worker_artifact.organization_id == fixture.organization_a_id
+
+    # ------------------------------------------------------------
+    # Worker role remains tenant-scoped after its legitimate INSERT.
+    # ------------------------------------------------------------
+
+    with tenant_transaction(
+        fixture.organization_a_id,
+        using="worker_runtime",
+    ):
+        assert set(
+            ReportArtifact.objects.using("worker_runtime").values_list(
+                "id",
+                flat=True,
+            )
+        ) == {
+            artifact_a.id,
+            worker_artifact.id,
+        }
+
+        assert (
+            not ReportArtifact.objects.using("worker_runtime")
+            .filter(id=artifact_b.id)
+            .exists()
+        )
+
+        assert (
+            not ReportArtifact.objects.using("worker_runtime")
+            .filter(object_key=artifact_b.object_key)
+            .exists()
+        )
+
+    # ------------------------------------------------------------
+    # Worker role: UPDATE remains denied.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="worker_runtime",
+        ):
+            ReportArtifact.objects.using("worker_runtime").filter(
+                id=artifact_a.id
+            ).update(size_bytes=999)
+
+    assert_insufficient_privilege(captured)
+
+    # ------------------------------------------------------------
+    # Worker role: DELETE remains denied.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="worker_runtime",
+        ):
+            ReportArtifact.objects.using("worker_runtime").filter(
+                id=artifact_a.id
+            ).delete()
+
+    assert_insufficient_privilege(captured)
+
+    # ------------------------------------------------------------
+    # Worker role: Tenant A cannot INSERT Tenant B metadata even
+    # while holding Tenant B's exact organization/report/snapshot IDs.
+    # ------------------------------------------------------------
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(
+            fixture.organization_a_id,
+            using="worker_runtime",
+        ):
+            ReportArtifact.objects.using("worker_runtime").create(
+                organization_id=fixture.organization_b_id,
+                report_id=report_cross_tenant.id,
+                assessment_snapshot_id=snapshot_cross_tenant.id,
+                object_key=build_pdf_object_key(
+                    organization_id=fixture.organization_b_id,
+                    assessment_snapshot_id=snapshot_cross_tenant.id,
+                    report_id=report_cross_tenant.id,
+                ),
+                content_type="application/pdf",
+                sha256="e" * 64,
+                size_bytes=500,
+            )
+
+    assert isinstance(captured.value, DatabaseError)
+    assert isinstance(captured.value.__cause__, psycopg.errors.RaiseException)
+    assert "report artifact report does not exist" in str(captured.value)
+
+    assert not ReportArtifact.objects.filter(
+        report_id=report_cross_tenant.id,
+    ).exists()
