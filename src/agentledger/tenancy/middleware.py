@@ -17,6 +17,9 @@ class TenantContextResolutionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path in {"/healthz", "/readyz"}:
+            return self.get_response(request)
+
         user = request.user
         if not user.is_authenticated:
             return self.get_response(request)

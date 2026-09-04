@@ -480,12 +480,35 @@ Next authorized phase:
 - **Phase 18 status: VERIFIED.**
 ## Phase 19 — Security and production settings
 
-- [ ] Production uses `DEBUG=False`, secure cookies, CSRF, HTTPS awareness, appropriate HSTS, explicit hosts/origins, strong secrets, clickjacking/content-type defenses, and secret-safe request logging.
-- [ ] `ALLOWED_HOSTS = ["*"]` is absent; actual Railway/custom hosts and Railway's healthcheck hostname are handled explicitly.
-- [ ] `/healthz` proves process liveness without tenant context.
-- [ ] `/readyz` proves application readiness, database connectivity, and required migration state without tenant context.
-- [ ] Production security validation and Django deployment checks pass.
+- [x] Production uses DEBUG=False, secure cookies, CSRF, HTTPS awareness, appropriate HSTS, explicit hosts/origins, strong secrets, clickjacking/content-type defenses, and secret-safe request logging.
+- [x] ALLOWED_HOSTS = ["*"] is absent; actual Railway/custom hosts and Railway's healthcheck hostname are handled explicitly.
+- [x] /healthz proves process liveness without tenant context.
+- [x] /readyz proves application readiness, database connectivity, and required migration state without tenant context.
+- [x] Production security validation and Django deployment checks pass.
 
+### Phase 19 verification evidence
+
+- Production settings force DEBUG=False.
+- Production refuses a missing, short, low-diversity, or django-insecure- prefixed DJANGO_SECRET_KEY.
+- Production requires explicit ALLOWED_HOSTS, rejects wildcard hosts, and explicitly includes Railway's healthcheck.railway.app healthcheck hostname.
+- Production requires explicit HTTPS CSRF_TRUSTED_ORIGINS and rejects wildcard or insecure HTTP origins.
+- SECURE_PROXY_SSL_HEADER recognizes the trusted HTTPS proxy signal and SECURE_SSL_REDIRECT=True enforces HTTPS-aware application behavior.
+- Session and CSRF cookies are secure; session cookies are HTTP-only; both use SameSite=Lax.
+- HSTS is enabled at 3600 seconds with subdomains included. HSTS preload remains intentionally disabled during the initial production ramp-up and must not be represented as enabled.
+- SECURE_CONTENT_TYPE_NOSNIFF=True and X_FRAME_OPTIONS="DENY" provide content-type and clickjacking defenses.
+- Gunicorn access logs record method and URL path without query strings, request headers, cookies, referrers, or request bodies.
+- /healthz bypasses tenant resolution and returns process liveness without requiring authentication, tenant context, database access, or migration inspection.
+- /readyz bypasses tenant resolution, verifies database connectivity with SELECT 1, verifies that Django has no pending migration plan, and returns 503 {"status":"not_ready"} when readiness fails.
+- Stale or invalid authenticated tenant session state cannot prevent /healthz or /readyz from reaching their health logic.
+- Focused Phase 19 security/baseline suite: 22/22 passed.
+- Canonical repository suite: 357/357 passed.
+- Canonical coverage: 88.25%, above the required 80% threshold.
+- Migration drift: none.
+- Repository Ruff formatting and lint checks: clean.
+- git diff --check: clean.
+- Django check --deploy exited successfully. Its only security warning was security.W021, expected because HSTS preload is intentionally deferred during the initial 3600-second ramp-up.
+- No Railway deployment, production variable mutation, custom-domain change, production database mutation, or production bucket operation occurred in Phase 19.
+- **Phase 19 status: VERIFIED.**
 ## Phase 20 — Railway production deployment
 
 - [ ] 20.1: A private GitHub repository exists, `main` is protected from force pushes, release candidates are tagged, and no secrets are committed.

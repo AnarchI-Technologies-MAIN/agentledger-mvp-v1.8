@@ -79,7 +79,7 @@ class BaselineTests(SimpleTestCase):
         environment = os.environ.copy()
         environment.update(
             {
-                "DJANGO_SECRET_KEY": "s" * 64,
+                "DJANGO_SECRET_KEY": "phase19-test-" + ("S3cur3!" * 8),
                 "DATABASE_URL": "postgresql://app:secret@db.internal/agentledger",
                 "ALLOWED_HOSTS": "agentledger.example",
                 "CSRF_TRUSTED_ORIGINS": "https://agentledger.example",
@@ -116,7 +116,7 @@ class BaselineTests(SimpleTestCase):
         environment = os.environ.copy()
         environment.update(
             {
-                "DJANGO_SECRET_KEY": "s" * 64,
+                "DJANGO_SECRET_KEY": "phase19-test-" + ("S3cur3!" * 8),
                 "DATABASE_URL": "postgresql://app:secret@db.internal/agentledger",
                 "ALLOWED_HOSTS": "*",
                 "CSRF_TRUSTED_ORIGINS": "https://agentledger.example",

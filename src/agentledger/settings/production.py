@@ -10,10 +10,12 @@ from .base import database_from_url, env_list
 DEBUG = False
 
 production_secret = os.getenv("DJANGO_SECRET_KEY", "")
-if len(production_secret) < 50:
-    raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY must be present and at least 50 characters in production"
-    )
+if (
+    len(production_secret) < 50
+    or len(set(production_secret)) < 5
+    or production_secret.startswith("django-insecure-")
+):
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be a strong production secret")
 SECRET_KEY = production_secret
 
 database_url = os.getenv("DATABASE_URL", "")
@@ -32,6 +34,13 @@ if "healthcheck.railway.app" not in ALLOWED_HOSTS:
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 if not CSRF_TRUSTED_ORIGINS:
     raise ImproperlyConfigured("CSRF_TRUSTED_ORIGINS must be explicit in production")
+if any(
+    not origin.startswith("https://") or origin == "https://" or "*" in origin
+    for origin in CSRF_TRUSTED_ORIGINS
+):
+    raise ImproperlyConfigured(
+        "CSRF_TRUSTED_ORIGINS must contain explicit HTTPS origins"
+    )
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
