@@ -452,12 +452,32 @@ Next authorized phase:
 - The same current Railway documentation confirms buckets are private and supports authorized delivery through presigned URLs or backend proxy responses.
 ## Phase 18 — Credential cryptography module
 
-- [ ] The connector-ready module implements versioned KEKs, per-record DEKs, AES-256-GCM, tenant/record AAD binding, normal rotation, and compromised-key rotation without creating production OAuth credentials.
-- [ ] Wrong tenant AAD, record AAD, or key causes decryption failure.
-- [ ] Normal rotation keeps existing ciphertext recoverable.
-- [ ] Compromised-key rotation creates a new DEK and ciphertext.
-- [ ] Old KEKs cannot be removed while an active envelope references them.
+- [x] The connector-ready module implements versioned KEKs, per-record DEKs, AES-256-GCM, tenant/record AAD binding, normal rotation, and compromised-key rotation without creating production OAuth credentials.
+- [x] Wrong tenant AAD, record AAD, or key causes decryption failure.
+- [x] Normal rotation keeps existing ciphertext recoverable.
+- [x] Compromised-key rotation creates a new DEK and ciphertext.
+- [x] Old KEKs cannot be removed while an active envelope references them.
 
+### Phase 18 verification evidence
+
+- cryptography==50.0.1 supplies the AES-GCM primitive; no custom cipher construction is introduced.
+- CredentialEnvelope records the envelope version, KEK version, wrapped-DEK nonce and ciphertext, payload nonce, and credential ciphertext.
+- Each credential receives a newly generated 256-bit DEK.
+- KEKs are exactly 256 bits and are addressed by positive integer version.
+- Both DEK wrapping and credential encryption authenticate tenant UUID and record UUID through domain-separated AAD.
+- Wrong tenant AAD, wrong record AAD, and an incorrect KEK with the same version number all fail authenticated decryption.
+- Normal KEK rotation unwraps and rewraps the existing DEK under the active KEK. Credential ciphertext and payload nonce remain unchanged and both the pre-rotation and rotated envelopes remain decryptable while their referenced KEKs remain available.
+- Compromised-key rotation decrypts the credential and creates a fresh DEK, fresh nonces, fresh wrapped DEK, and fresh credential ciphertext under the active KEK.
+- VersionedKEKRing.remove_kek() rejects removal of the active KEK and rejects removal of an older KEK while any supplied active envelope still references it.
+- KEK lifecycle enforcement is intentionally module-level in the connector-ready MVP. A future persistence layer must supply the authoritative active-envelope set before key removal.
+- No connector model, OAuth client credential, access token, refresh token, or production connector secret is created by Phase 18.
+- Focused Phase 18 cryptography suite: 10/10 passed.
+- Canonical repository suite: 344/344 passed.
+- Canonical coverage: 88.24%, above the required 80% threshold.
+- Migration drift: none.
+- Repository Ruff format and lint checks: clean.
+- git diff --check: clean.
+- **Phase 18 status: VERIFIED.**
 ## Phase 19 — Security and production settings
 
 - [ ] Production uses `DEBUG=False`, secure cookies, CSRF, HTTPS awareness, appropriate HSTS, explicit hosts/origins, strong secrets, clickjacking/content-type defenses, and secret-safe request logging.
