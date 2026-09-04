@@ -13,5 +13,6 @@ urlpatterns = [
     path("readyz", readyz, name="readyz"),
     path("accounts/", include("apps.accounts.urls")),
     path("workspaces/", include("apps.organizations.urls")),
+    path("inventory/", include("apps.inventory.urls")),
     path("", home_redirect),
 ]

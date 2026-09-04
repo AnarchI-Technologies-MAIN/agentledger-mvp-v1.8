@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -75,3 +76,8 @@ class InventoryItem(models.Model):
 
     def __str__(self) -> str:
         return self.display_name
+
+    @property
+    def monthly_cost_display(self) -> str:
+        amount = Decimal(self.monthly_cost_cents) / Decimal(100)
+        return f"{amount:.2f}"

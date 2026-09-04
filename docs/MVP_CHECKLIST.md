@@ -68,11 +68,13 @@ Phase 3 evidence, 2026-09-04, local integration against the isolated PostgreSQL 
 
 ## Phase 4 — Manual inventory
 
-- [ ] Inventory supports the specified vendor, owner, department, users, purpose, cost, systems, data, permissions, autonomy, approval, status, and source fields.
-- [ ] Inventory supports add, edit, archive, search, filter, and detail without Django admin.
-- [ ] Customer-facing autonomy choices use plain-language behavior descriptions rather than numbered technical levels.
-- [ ] The required data categories are available.
-- [ ] A realistic demo bookkeeping company contains at least 10 software/AI inventory items created without Django admin.
+- [x] Inventory supports the specified vendor, owner, department, users, purpose, cost, systems, data, permissions, autonomy, approval, status, and source fields.
+- [x] Inventory supports add, edit, archive, search, filter, and detail without Django admin.
+- [x] Customer-facing autonomy choices use plain-language behavior descriptions rather than numbered technical levels.
+- [x] The required data categories are available.
+- [x] A realistic demo bookkeeping company contains at least 10 software/AI inventory items created without Django admin.
+
+Phase 4 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the canonical PowerShell test entrypoint provisioned the restricted roles, recreated the test schema with forced RLS, and passed all 54 tests with 93.83% branch coverage measured across both `apps` and `src`. Inventory tests prove exact cent conversion and display, all required data categories, organization-bound add/detail/edit, immutable discovery source during manual edits, Viewer write denial, direct cross-organization 404 behavior, POST-only archive with removal from the active list, search, status filtering, and a bounded management command that creates exactly ten realistic manual bookkeeping items only in an empty organization and refuses overwrite. Forms render autonomy and access questions as plain business statements; no Django admin route is installed.
 
 ## Phase 5 — Small deterministic product catalog
 
