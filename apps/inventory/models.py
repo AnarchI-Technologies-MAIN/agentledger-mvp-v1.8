@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from apps.catalog.models import Product
 from apps.organizations.models import Organization
 
 
@@ -34,7 +35,13 @@ class InventoryItem(models.Model):
         on_delete=models.PROTECT,
         related_name="inventory_items",
     )
-    product_id = models.UUIDField(null=True, blank=True)
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="inventory_items",
+        null=True,
+        blank=True,
+    )
     display_name = models.CharField(max_length=255)
     vendor_name = models.CharField(max_length=255)
     business_owner = models.CharField(max_length=255, blank=True)

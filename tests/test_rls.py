@@ -14,6 +14,7 @@ from agentledger.tenancy.context import (
     identity_transaction,
     tenant_transaction,
 )
+from apps.catalog.models import Product, Vendor
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
 
@@ -109,6 +110,18 @@ def raw_inventory_ids(using: str) -> set[UUID]:
 )
 def test_restricted_alias_uses_the_expected_database_identity(using, expected):
     assert current_user(using) == expected
+
+
+def test_app_runtime_can_read_global_catalog_without_write_authority():
+    vendor = Vendor.objects.create(name="RLS Catalog Vendor")
+    Product.objects.create(vendor=vendor, name="RLS Catalog Product", category="Test")
+
+    assert Product.objects.using("app_runtime").count() == 1
+    with pytest.raises(DatabaseError) as captured:
+        with transaction.atomic(using="app_runtime"):
+            Vendor.objects.using("app_runtime").create(name="Forbidden Catalog Write")
+
+    assert_insufficient_privilege(captured)
 
 
 def test_database_roles_have_the_required_privilege_boundary():

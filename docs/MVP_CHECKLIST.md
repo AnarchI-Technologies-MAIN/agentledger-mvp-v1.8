@@ -78,16 +78,18 @@ Phase 4 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the can
 
 ## Phase 5 — Small deterministic product catalog
 
-- [ ] Roughly 30–50 common AI-enabled products are seeded; the catalog has not expanded into a giant SaaS database.
-- [ ] Matching uses the accepted exact priority and never uses fuzzy automatic AI classification.
-- [ ] Known identifiers match deterministically and unknown identifiers remain unknown and require review.
-- [ ] Mixed-case opaque OAuth identifiers are preserved.
-- [ ] UUID provider identifiers are canonicalized as UUIDs.
-- [ ] Unicode hostnames have deterministic IDNA normalization.
-- [ ] IPv6 addresses with ports normalize correctly.
-- [ ] Hostname trailing dots normalize correctly.
-- [ ] `api.example.com` remains distinct from `example.com` unless an explicit alias exists.
-- [ ] Redirect-URI path and query data are not silently discarded.
+- [x] Roughly 30–50 common AI-enabled products are seeded; the catalog has not expanded into a giant SaaS database.
+- [x] Matching uses the accepted exact priority and never uses fuzzy automatic AI classification.
+- [x] Known identifiers match deterministically and unknown identifiers remain unknown and require review.
+- [x] Mixed-case opaque OAuth identifiers are preserved.
+- [x] UUID provider identifiers are canonicalized as UUIDs.
+- [x] Unicode hostnames have deterministic IDNA normalization.
+- [x] IPv6 addresses with ports normalize correctly.
+- [x] Hostname trailing dots normalize correctly.
+- [x] `api.example.com` remains distinct from `example.com` unless an explicit alias exists.
+- [x] Redirect-URI path and query data are not silently discarded.
+
+Phase 5 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the canonical restricted-role suite passed all 69 tests with 93.75% branch coverage. The idempotent seed creates exactly 40 deterministic product records and 80 aliases; every seeded vendor remains explicitly “Review incomplete,” product-name aliases are exact, hostname aliases remain unusable until verified, and no provider/OAuth identifier is invented. AL-ID-1 regression tests prove mixed-case opaque-token preservation, Microsoft UUID canonicalization, UTS-46/IDNA 3.19 Unicode hostnames, IPv6 plus ports, trailing-dot removal, no subdomain collapse, redirect path/query retention, null-scope collision rejection, priority of immutable provider IDs over exact product names, unknown/unverified outcomes, and conflict-to-review behavior. Restricted-role tests additionally prove global catalog reads and denied catalog writes under `agentledger_app`. Representative official product checks and claim boundaries are recorded in `docs/CATALOG_SEED.md`; no production catalog verification is claimed.
 
 ## Phase 6 — Three-step CSV import
 
