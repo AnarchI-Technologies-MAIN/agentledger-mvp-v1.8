@@ -50,19 +50,21 @@ Phase 2 evidence, 2026-09-04, local development against the isolated PostgreSQL 
 
 ## Phase 3 — PostgreSQL row-level security (release blocking)
 
-- [ ] `agentledger_owner`, `agentledger_app`, and `agentledger_worker` exist with separate credentials and the specified ownership boundary.
-- [ ] App and worker runtime roles are NOSUPERUSER, NOBYPASSRLS, and do not own tenant business tables.
-- [ ] Every tenant-owned table has non-null `organization_id`, ENABLE RLS, FORCE RLS, and correct USING and WITH CHECK policies.
-- [ ] Restricted `app_runtime` and `worker_runtime` aliases prove their actual database identities with `SELECT current_user`.
-- [ ] Tenant A plus an unfiltered ORM query cannot see Tenant B.
-- [ ] Tenant A plus raw `SELECT *` cannot see Tenant B.
-- [ ] Tenant A cannot retrieve Tenant B by a directly supplied primary key.
-- [ ] An insert carrying Tenant B's organization ID is rejected by PostgreSQL.
-- [ ] An update aimed at Tenant B affects zero rows or is rejected by PostgreSQL.
-- [ ] Missing tenant context fails closed.
-- [ ] Context set on the default connection does not unlock `app_runtime`.
-- [ ] Worker context cannot access the wrong tenant's business data.
-- [ ] All tenant-isolation tests pass under the real restricted database roles. Development must stop at this gate if they fail.
+- [x] `agentledger_owner`, `agentledger_app`, and `agentledger_worker` exist with separate credentials and the specified ownership boundary.
+- [x] App and worker runtime roles are NOSUPERUSER, NOBYPASSRLS, and do not own tenant business tables.
+- [x] Every tenant-owned table has non-null `organization_id`, ENABLE RLS, FORCE RLS, and correct USING and WITH CHECK policies.
+- [x] Restricted `app_runtime` and `worker_runtime` aliases prove their actual database identities with `SELECT current_user`.
+- [x] Tenant A plus an unfiltered ORM query cannot see Tenant B.
+- [x] Tenant A plus raw `SELECT *` cannot see Tenant B.
+- [x] Tenant A cannot retrieve Tenant B by a directly supplied primary key.
+- [x] An insert carrying Tenant B's organization ID is rejected by PostgreSQL.
+- [x] An update aimed at Tenant B affects zero rows or is rejected by PostgreSQL.
+- [x] Missing tenant context fails closed.
+- [x] Context set on the default connection does not unlock `app_runtime`.
+- [x] Worker context cannot access the wrong tenant's business data.
+- [x] All tenant-isolation tests pass under the real restricted database roles. Development must stop at this gate if they fail.
+
+Phase 3 evidence, 2026-09-04, local integration against the isolated PostgreSQL 18.6 service: `scripts/verify_rls.py` generated separate high-entropy role credentials in memory, provisioned three LOGIN/NOSUPERUSER/NOBYPASSRLS/NOINHERIT roles without printing those credentials, applied the security migration, and ran the complete suite through distinct `owner_runtime`, `app_runtime`, and `worker_runtime` connections. All 44 tests passed with 93.98% branch coverage, including 13 restricted-role RLS tests. Database introspection proved each alias's `current_user`, `agentledger_owner` ownership of `inventory_items`, forced RLS and non-null organization keys on all current organization-scoped tables, and the tenant policy's USING/WITH CHECK boundary. Canonical A/B rows then proved self-membership bootstrap, unfiltered ORM and raw-SQL isolation, direct-key denial, database rejection of cross-tenant inserts, zero-row cross-tenant updates, missing-context failure, connection-local alias separation, and worker isolation. The development database migration head is `inventory.0002_database_security`; no production state is claimed.
 
 ## Phase 4 — Manual inventory
 

@@ -68,6 +68,10 @@ Provision separate credentials:
 - `agentledger_app`: web runtime; NOSUPERUSER, NOBYPASSRLS, non-owner of tenant tables.
 - `agentledger_worker`: worker runtime; NOSUPERUSER, NOBYPASSRLS, non-owner of tenant business tables.
 
+The reviewed provisioner is `scripts/provision_database_roles.py`. It requires `DATABASE_ADMIN_URL` plus `AGENTLEDGER_OWNER_DB_PASSWORD`, `AGENTLEDGER_APP_DB_PASSWORD`, and `AGENTLEDGER_WORKER_DB_PASSWORD` from the deployment secret plane. It validates password length, creates or hardens the three fixed role names, and does not print credential values. The administrator connection is a bounded bootstrap authority, not a runtime variable.
+
+Local and CI isolation verification runs through `scripts/test.ps1`, which delegates to `scripts/verify_rls.py`. That verifier generates high-entropy role passwords in memory, rotates the isolated test roles, applies migrations, and runs Django tests through distinct owner, app, and worker connections. Those ephemeral credentials are neither written to disk nor suitable for production.
+
 The web receives only the app runtime connection. The worker receives only the worker runtime connection. Use a bounded release job or explicit founder-controlled release operation for owner-role migrations. A Railway pre-deploy command runs with the service's variables, so it must not be placed on a normal service if doing so would require permanently giving that service the owner credential.
 
 Before migration:
