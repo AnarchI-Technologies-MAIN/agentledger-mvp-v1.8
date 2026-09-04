@@ -138,10 +138,12 @@ Phase 10 evidence, 2026-09-04, local Python 3.14.7 and Django test client agains
 
 ## Phase 11 — Immutable assessment snapshots
 
-- [ ] A snapshot captures inventory, evidence references, platform/industry and organization rule versions, risk configuration, ROI assumptions, timestamp, and engine version.
-- [ ] Canonical input and result SHA-256 hashes are stored with assessment identity and version metadata.
-- [ ] Inventory, rules, or ROI edits cannot mutate historical assessments.
-- [ ] Yesterday's assessment remains identical after today's changes.
+- [x] A snapshot captures inventory, evidence references, platform/industry and organization rule versions, risk configuration, ROI assumptions, timestamp, and engine version.
+- [x] Canonical input and result SHA-256 hashes are stored with assessment identity and version metadata.
+- [x] Inventory, rules, or ROI edits cannot mutate historical assessments.
+- [x] Yesterday's assessment remains identical after today's changes.
+
+Phase 11 evidence, 2026-09-04, local Python 3.14.7 and PostgreSQL 18.6: `apps/assessments/snapshots.py` requires an explicit timezone-aware capture time and records a canonical whole-tenant inventory copy, evidence references, explicit absent platform-pack state, accounting industry-pack version, organization rule versions, all eight risk weights/version, every ROI value/provenance, policy/risk/ROI engine versions, and complete policy/risk/ROI results. RFC 8785 canonical input and result bytes are independently SHA-256 hashed and stored with a UUID assessment identity, snapshot schema version, and monotonically extended revision. Payloads are normalized through canonical bytes before insertion so immediate and database-round-trip representations are identical. The model rejects mismatched hashes, instance updates, and deletes; a PostgreSQL trigger rejects bulk UPDATE/DELETE, while grants and forced RLS limit app/worker roles to tenant-scoped SELECT/INSERT. Prior hashes are verified and only the latest stored revision may be extended. A regression creates yesterday's snapshot, edits inventory, rule-version references, and ROI assumptions today, then proves the prior payloads and hashes remain byte-canonically identical while a new version records the changes. The tenant-scoped UI can save and open a hash-verified snapshot; Viewers cannot save one. The canonical PowerShell/restricted-role suite passed all 162 tests with 91.96% branch coverage, including 16 restricted-role tests. Formatting, lint, migration-drift, migrations, and Django system checks passed. This is local persistence and isolation evidence; no production snapshot is claimed.
 
 ## Phase 12 — Visual no-code rule builder
 

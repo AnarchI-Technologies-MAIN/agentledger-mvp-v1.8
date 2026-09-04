@@ -47,6 +47,7 @@ body { margin: 0; }
 .risk-summary, .finding { margin-top: 1.5rem; }
 .risk-summary details { margin-top: 1rem; }
 .finding { border-top: 1px solid #e6ece8; padding-top: 1rem; }
+.hash-value, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
 .import-row { margin-bottom: 1.25rem; }
 .row-error { border-color: #b94b4b; }
 .compact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 1rem; }

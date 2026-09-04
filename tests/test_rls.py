@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 import psycopg
@@ -14,6 +15,8 @@ from agentledger.tenancy.context import (
     identity_transaction,
     tenant_transaction,
 )
+from apps.assessments.models import AssessmentSnapshot
+from apps.assessments.snapshots import canonical_sha256
 from apps.catalog.models import Product, Vendor
 from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
@@ -78,6 +81,8 @@ def isolation_fixture():
         item_b.id,
     )
     yield fixture
+    with connections["default"].cursor() as cursor:
+        cursor.execute("TRUNCATE TABLE assessment_snapshots")
     InventoryItem.objects.all().delete()
     OrganizationMember.objects.all().delete()
     Organization.objects.all().delete()
@@ -167,6 +172,7 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             """
         )
         assert cursor.fetchall() == [
+            ("assessment_snapshots", True, True, True),
             ("inventory_import_batches", True, True, True),
             ("inventory_import_rows", True, True, True),
             ("inventory_items", True, True, True),
@@ -187,6 +193,64 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             True,
             True,
         )
+
+
+def test_assessment_snapshots_are_tenant_isolated_and_append_only(isolation_fixture):
+    fixture = isolation_fixture
+    payload_a = {"tenant": "A"}
+    payload_b = {"tenant": "B"}
+    snapshot_a = AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_a_id,
+        created_by_id=fixture.user_a_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload_a,
+        result_payload=payload_a,
+        input_sha256=canonical_sha256(payload_a),
+        result_sha256=canonical_sha256(payload_a),
+    )
+    AssessmentSnapshot.objects.create(
+        organization_id=fixture.organization_b_id,
+        created_by_id=fixture.user_b_id,
+        captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+        input_payload=payload_b,
+        result_payload=payload_b,
+        input_sha256=canonical_sha256(payload_b),
+        result_sha256=canonical_sha256(payload_b),
+    )
+
+    with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+        visible_ids = set(
+            AssessmentSnapshot.objects.using("app_runtime").values_list("id", flat=True)
+        )
+    assert visible_ids == {snapshot_a.id}
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            AssessmentSnapshot.objects.using("app_runtime").filter(
+                pk=snapshot_a.id
+            ).update(version=2)
+    assert_insufficient_privilege(captured)
+
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            AssessmentSnapshot.objects.using("app_runtime").filter(
+                pk=snapshot_a.id
+            ).delete()
+    assert_insufficient_privilege(captured)
+
+    forbidden = {"tenant": "B through A"}
+    with pytest.raises(DatabaseError) as captured:
+        with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+            AssessmentSnapshot.objects.using("app_runtime").create(
+                organization_id=fixture.organization_b_id,
+                created_by_id=fixture.user_b_id,
+                captured_at=datetime(2026, 9, 4, tzinfo=UTC),
+                input_payload=forbidden,
+                result_payload=forbidden,
+                input_sha256=canonical_sha256(forbidden),
+                result_sha256=canonical_sha256(forbidden),
+            )
+    assert_insufficient_privilege(captured)
 
 
 def test_identity_bootstrap_exposes_only_the_users_own_membership(

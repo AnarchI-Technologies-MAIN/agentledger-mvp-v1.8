@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.imports.apps.ImportsConfig",
     "apps.policies.apps.PoliciesConfig",
     "apps.roi.apps.RoiConfig",
+    "apps.assessments.apps.AssessmentsConfig",
 ]
 
 MIDDLEWARE = [

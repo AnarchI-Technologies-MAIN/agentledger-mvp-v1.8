@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.assessments.snapshots import create_assessment_snapshot
 from apps.organizations.models import OrganizationMember
 from apps.policies.context import inventory_policy_context
 from apps.policies.engine import PolicyResult, evaluate_policies
@@ -122,6 +123,16 @@ def inventory_roi_view(request, item_id):
         form = ROIForm(request.POST)
         if form.is_valid():
             result = calculate_roi(form.to_inputs())
+            if request.POST.get("action") == "save_snapshot":
+                _require_inventory_writer(request)
+                snapshot = create_assessment_snapshot(
+                    organization_id=_organization_id(request),
+                    created_by_id=request.user.id,
+                    assessed_item_id=item.id,
+                    roi_inputs=form.to_inputs(),
+                    captured_at=timezone.now(),
+                )
+                return redirect("assessments:detail", snapshot_id=snapshot.id)
     else:
         form = ROIForm(
             initial={

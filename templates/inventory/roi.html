@@ -6,7 +6,8 @@
     {% csrf_token %}
     {{ form.non_field_errors }}
     {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field.errors }}{{ field }}</div>{% endfor %}
-    <button class="button" type="submit">Calculate ROI</button>
+    <button class="button" type="submit" name="action" value="calculate">Calculate ROI</button>
+    <button class="button button-secondary" type="submit" name="action" value="save_snapshot">Save immutable assessment</button>
   </form>
   {% if roi_result %}<section class="card risk-summary" aria-labelledby="roi-heading">
     <p class="eyebrow">Deterministic calculation</p>
