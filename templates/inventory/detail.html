@@ -14,6 +14,7 @@
     {% if risk_score.explanation_lines %}<ul>{% for line in risk_score.explanation_lines %}<li>{{ line }}</li>{% endfor %}</ul>{% else %}<p>No risk-point contributions matched the recorded information.</p>{% endif %}
     <details><summary>Show the arithmetic</summary><ul>{% for dimension in risk_score.dimensions %}<li>{{ dimension.arithmetic }}</li>{% endfor %}</ul><p>Weighted total before required minimums: {{ risk_score.raw_weighted_score }}</p></details>
   </section>
+  <p><a class="button" href="{% url 'inventory:roi' item.id %}">Calculate return on investment</a></p>
   <section class="card" aria-labelledby="findings-heading">
     <h2 id="findings-heading">Findings and next steps</h2>
     {% if policy_findings %}{% for finding in policy_findings %}<article class="finding"><h3>{{ finding.severity.name|title }} — {{ finding.result.value|title }}</h3><p>{{ finding.explanation }}</p><p><strong>Next step:</strong> {{ finding.recommended_remediation }}</p><p class="muted">Rule {{ finding.rule_id }} · version {{ finding.rule_version }}</p></article>{% endfor %}{% else %}<p>No accounting policy findings matched the recorded information.</p>{% endif %}

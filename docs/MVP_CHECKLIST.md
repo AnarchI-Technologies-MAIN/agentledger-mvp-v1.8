@@ -129,10 +129,12 @@ Phase 9 evidence, 2026-09-04, local Python 3.14.7 and Django test client against
 
 ## Phase 10 — ROI engine
 
-- [ ] Inputs, assumption provenance, and formulas match the approved baseline.
-- [ ] The UI displays the arithmetic used for every result.
-- [ ] Zero-cost denominators never produce infinity or divide-by-zero failures.
-- [ ] A customer can reproduce every displayed ROI number with a calculator.
+- [x] Inputs, assumption provenance, and formulas match the approved baseline.
+- [x] The UI displays the arithmetic used for every result.
+- [x] Zero-cost denominators never produce infinity or divide-by-zero failures.
+- [x] A customer can reproduce every displayed ROI number with a calculator.
+
+Phase 10 evidence, 2026-09-04, local Python 3.14.7 and Django test client against PostgreSQL 18.6: `apps/roi/engine.py` calculates monthly labor value, monthly value, amortized implementation cost, total monthly cost, monthly net value, and ROI using Decimal arithmetic and version `AL-ROI-1`. Subscription cost, implementation cost, its explicit amortization period, hours saved, loaded hourly rate, additional attributable revenue, and avoided monthly cost each retain one of the exact Measured, Customer supplied, Estimated, or Unknown labels; unknown nonzero inputs fail closed. The tenant-scoped inventory ROI page displays every formula with substituted values, every assumption source, and the half-up nearest-cent rounding rule. A zero monthly total cost returns an explicit unavailable result without division or infinity. Exact example arithmetic, three-month rounding, repeated evaluation, invalid inputs, ambient-dependency exclusion, tenant isolation, form correction, and rendered output are tested. The canonical PowerShell/restricted-role suite passed all 153 tests with 91.68% branch coverage. Formatting, lint, migration-drift, and Django system checks also passed. This is local deterministic/UI response evidence; no customer-entered production ROI record is claimed.
 
 ## Phase 11 — Immutable assessment snapshots
 

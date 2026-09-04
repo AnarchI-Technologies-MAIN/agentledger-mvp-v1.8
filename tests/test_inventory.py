@@ -121,6 +121,82 @@ def test_inventory_detail_explains_risk_score_and_each_contribution(
     assert b"Weighted total before required minimums" in response.content
 
 
+def test_roi_page_displays_all_arithmetic_and_assumption_sources(
+    client, inventory_context
+):
+    _user, organization, _membership = inventory_context
+    item = InventoryItem.objects.create(
+        organization=organization,
+        display_name="Time Saver",
+        vendor_name="Example Vendor",
+        monthly_cost_cents=10000,
+    )
+    payload = {
+        "monthly_subscription_cost": "100.00",
+        "monthly_subscription_cost_provenance": "Customer supplied",
+        "implementation_cost": "1200.00",
+        "implementation_cost_provenance": "Customer supplied",
+        "implementation_amortization_months": "12",
+        "implementation_amortization_months_provenance": "Estimated",
+        "hours_saved_per_month": "10.00",
+        "hours_saved_per_month_provenance": "Measured",
+        "loaded_hourly_rate": "50.00",
+        "loaded_hourly_rate_provenance": "Customer supplied",
+        "attributable_revenue": "200.00",
+        "attributable_revenue_provenance": "Estimated",
+        "avoided_monthly_cost": "100.00",
+        "avoided_monthly_cost_provenance": "Measured",
+    }
+
+    response = client.post(reverse("inventory:roi", args=(item.id,)), payload)
+
+    assert response.status_code == 200
+    assert b"Monthly net value: $600.00" in response.content
+    assert b"300.00%" in response.content
+    assert b"Monthly labor value: 10.00 hours" in response.content
+    assert b"Monthly implementation cost: $1200.00" in response.content
+    assert b"Assumption sources" in response.content
+    assert response.content.count(b"Measured") >= 2
+    assert response.content.count(b"Customer supplied") >= 2
+    assert response.content.count(b"Estimated") >= 2
+
+
+def test_roi_page_handles_zero_cost_and_rejects_unknown_nonzero_values(
+    client, inventory_context
+):
+    _user, organization, _membership = inventory_context
+    item = InventoryItem.objects.create(
+        organization=organization,
+        display_name="No-cost Trial",
+        vendor_name="Example Vendor",
+    )
+    zero_payload = {
+        "monthly_subscription_cost": "0.00",
+        "monthly_subscription_cost_provenance": "Unknown",
+        "implementation_cost": "0.00",
+        "implementation_cost_provenance": "Unknown",
+        "implementation_amortization_months": "12",
+        "implementation_amortization_months_provenance": "Estimated",
+        "hours_saved_per_month": "0.00",
+        "hours_saved_per_month_provenance": "Unknown",
+        "loaded_hourly_rate": "0.00",
+        "loaded_hourly_rate_provenance": "Unknown",
+        "attributable_revenue": "0.00",
+        "attributable_revenue_provenance": "Unknown",
+        "avoided_monthly_cost": "0.00",
+        "avoided_monthly_cost_provenance": "Unknown",
+    }
+
+    response = client.post(reverse("inventory:roi", args=(item.id,)), zero_payload)
+    assert b"Not available because monthly total cost is $0.00" in response.content
+    assert b"Infinity" not in response.content
+
+    zero_payload["hours_saved_per_month"] = "2.00"
+    invalid = client.post(reverse("inventory:roi", args=(item.id,)), zero_payload)
+    assert b"Use 0 when this amount is unknown." in invalid.content
+    assert invalid.context["roi_result"] is None
+
+
 def test_viewer_cannot_create_or_edit_inventory(client, inventory_context):
     _user, organization, membership = inventory_context
     membership.role = OrganizationMember.Role.VIEWER
@@ -154,6 +230,9 @@ def test_item_lookup_is_scoped_to_the_active_organization(client, inventory_cont
     response = client.get(reverse("inventory:detail", args=(other_item.id,)))
 
     assert response.status_code == 404
+    assert (
+        client.get(reverse("inventory:roi", args=(other_item.id,))).status_code == 404
+    )
 
 
 def test_owner_can_edit_inventory_without_changing_source(client, inventory_context):

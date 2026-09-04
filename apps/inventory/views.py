@@ -14,6 +14,8 @@ from apps.policies.context import inventory_policy_context
 from apps.policies.engine import PolicyResult, evaluate_policies
 from apps.policies.packs.accounting import ACCOUNTING_RISK_PACK_V1
 from apps.policies.risk import calculate_policy_risk
+from apps.roi.engine import calculate_roi
+from apps.roi.forms import ROIForm
 
 from .forms import InventoryItemForm
 from .models import InventoryItem
@@ -109,6 +111,40 @@ def inventory_detail_view(request, item_id):
             ),
             "risk_score": risk_score,
         },
+    )
+
+
+@login_required
+def inventory_roi_view(request, item_id):
+    item = _inventory_item(request, item_id)
+    result = None
+    if request.method == "POST":
+        form = ROIForm(request.POST)
+        if form.is_valid():
+            result = calculate_roi(form.to_inputs())
+    else:
+        form = ROIForm(
+            initial={
+                "monthly_subscription_cost": item.monthly_cost_display,
+                "monthly_subscription_cost_provenance": "Customer supplied",
+                "implementation_cost": "0.00",
+                "implementation_cost_provenance": "Unknown",
+                "implementation_amortization_months": 12,
+                "implementation_amortization_months_provenance": ("Customer supplied"),
+                "hours_saved_per_month": "0.00",
+                "hours_saved_per_month_provenance": "Unknown",
+                "loaded_hourly_rate": "0.00",
+                "loaded_hourly_rate_provenance": "Unknown",
+                "attributable_revenue": "0.00",
+                "attributable_revenue_provenance": "Unknown",
+                "avoided_monthly_cost": "0.00",
+                "avoided_monthly_cost_provenance": "Unknown",
+            }
+        )
+    return render(
+        request,
+        "inventory/roi.html",
+        {"item": item, "form": form, "roi_result": result},
     )
 
 
