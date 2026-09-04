@@ -161,6 +161,8 @@ def test_same_context_rules_and_engine_produce_identical_result():
         lambda: Effect("risk_points", value="twenty"),
         lambda: Effect("severity_floor", value="EXTREME"),
         lambda: Effect("require_control"),
+        lambda: Effect("create_finding"),
+        lambda: Effect("recommend_review"),
     ],
 )
 def test_unapproved_rule_structures_fail_closed(constructor):

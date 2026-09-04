@@ -112,9 +112,11 @@ Phase 7 evidence, 2026-09-04, local Python 3.14.7: `tests/test_policy_engine.py`
 
 ## Phase 8 — Accounting/bookkeeping risk pack
 
-- [ ] The only MVP industry pack covers payroll, tax, banking, financial actions, accounting-data modification, client exports, communications/transmission, autonomy, approval, retention, model-training behavior, and vendor-review status.
-- [ ] Findings use plain business language and never claim AgentLedger blocked or enforced a third-party action.
-- [ ] A realistic bookkeeping inventory produces findings a nontechnical bookkeeper can understand without technical documentation.
+- [x] The only MVP industry pack covers payroll, tax, banking, financial actions, accounting-data modification, client exports, communications/transmission, autonomy, approval, retention, model-training behavior, and vendor-review status.
+- [x] Findings use plain business language and never claim AgentLedger blocked or enforced a third-party action.
+- [x] A realistic bookkeeping inventory produces findings a nontechnical bookkeeper can understand without technical documentation.
+
+Phase 8 evidence, 2026-09-04, local Python 3.14.7: `apps/policies/packs/accounting.py` publishes the single named MVP industry pack, `accounting_and_bookkeeping` version `1.1.0`, with 11 immutable rules covering the required accounting subjects. The pack uses "vendor review is incomplete" and describes approval, review, documentation, and source-system operating procedures without claiming AgentLedger blocked, stopped, intercepted, prevented, or enforced an action. `tests/test_accounting_policy_pack.py` evaluates realistic payroll/tax and autonomous banking/accounting inventory contexts and asserts understandable explanations and corrective actions for a bookkeeper, subject coverage, exact rule IDs and version, enforcement-claim exclusions, and repeatability. All 38 focused policy tests and the canonical PowerShell/restricted-role suite passed; the full suite passed all 118 tests with 91.39% branch coverage. Formatting, lint, migration-drift, and Django system checks also passed. This is local deterministic policy-pack evidence; customer comprehension and production behavior are not claimed beyond the tested language and contexts.
 
 ## Phase 9 — Deterministic risk engine
 

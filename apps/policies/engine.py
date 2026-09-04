@@ -138,6 +138,10 @@ class Effect:
             raise PolicyDefinitionError("severity_floor requires a named severity")
         if self.type == "require_control" and not self.control:
             raise PolicyDefinitionError("require_control requires a control name")
+        if self.type in {"create_finding", "recommend_review"} and not self.message:
+            raise PolicyDefinitionError(
+                f"{self.type} requires a plain-language message"
+            )
 
 
 @dataclass(frozen=True)
