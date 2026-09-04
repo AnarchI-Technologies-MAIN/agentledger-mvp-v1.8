@@ -103,10 +103,12 @@ Phase 6 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the can
 
 ## Phase 7 — Deterministic policy engine
 
-- [ ] The engine is pure Python and performs no database writes, network calls, current-time reads, LLM calls, executable expressions, `eval`, or `exec`.
-- [ ] Only the accepted operators, results, result fields, and precedence rules are supported.
-- [ ] Published platform and industry rules are versioned and immutable; a change creates a new version.
-- [ ] Regression tests prove the same context, rule version, and engine version produce the same output.
+- [x] The engine is pure Python and performs no database writes, network calls, current-time reads, LLM calls, executable expressions, `eval`, or `exec`.
+- [x] Only the accepted operators, results, result fields, and precedence rules are supported.
+- [x] Published platform and industry rules are versioned and immutable; a change creates a new version.
+- [x] Regression tests prove the same context, rule version, and engine version produce the same output.
+
+Phase 7 evidence, 2026-09-04, local Python 3.14.7: `tests/test_policy_engine.py` passed all 30 focused tests and the canonical PowerShell/restricted-role suite passed all 110 tests with 91.32% branch coverage. `apps/policies/engine.py` imports only Python standard-library definition helpers, accepts only the 12 specified operators and five governance effects over an explicit context-field allowlist, returns the four specified result values with the seven required evidence fields, and evaluates independently ordered layers as Mandatory Platform, Industry, Organization, then Platform Recommendation. An organization PASS remains a separate result and cannot erase a mandatory FAIL. Definitions reject mutable nested values and mutable condition/effect containers. `apps/policies/registry.py` refuses replacement of an existing published name/version while permitting publication under a new version. AST regression checks reject executable built-ins and ambient database, network, clock, or LLM dependencies. Repeated evaluation equality is asserted against engine version `AL-POLICY-1`. Formatting, lint, migration-drift, and Django system checks also passed. This is deterministic local engine evidence; no production evaluation is claimed.
 
 ## Phase 8 — Accounting/bookkeeping risk pack
 
