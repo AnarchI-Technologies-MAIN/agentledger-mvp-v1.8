@@ -53,6 +53,14 @@ def provision_database_roles(
                     sql.Identifier(administrator),
                 )
             )
+            cursor.execute("SELECT current_database()")
+            database_name = cursor.fetchone()[0]
+            cursor.execute(
+                sql.SQL("ALTER DATABASE {} OWNER TO {}").format(
+                    sql.Identifier(database_name),
+                    sql.Identifier("agentledger_owner"),
+                )
+            )
 
 
 def main() -> int:
