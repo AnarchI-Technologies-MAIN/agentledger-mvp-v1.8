@@ -15,6 +15,7 @@ from agentledger.tenancy.context import (
     tenant_transaction,
 )
 from apps.catalog.models import Product, Vendor
+from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
 from apps.organizations.models import Organization, OrganizationMember
 
@@ -166,6 +167,8 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             """
         )
         assert cursor.fetchall() == [
+            ("inventory_import_batches", True, True, True),
+            ("inventory_import_rows", True, True, True),
             ("inventory_items", True, True, True),
             ("organizations_organizationmember", True, True, True),
         ]
@@ -282,3 +285,47 @@ def test_worker_role_cannot_read_another_tenants_business_rows(isolation_fixture
     with tenant_transaction(fixture.organization_a_id, using="worker_runtime"):
         assert current_user("worker_runtime") == "agentledger_worker"
         assert raw_inventory_ids("worker_runtime") == {fixture.item_a_id}
+
+
+def test_csv_staging_is_tenant_isolated_under_app_role(isolation_fixture):
+    fixture = isolation_fixture
+    user_model = get_user_model()
+    batch_a = ImportBatch.objects.create(
+        organization_id=fixture.organization_a_id,
+        created_by_id=fixture.user_a_id,
+        source_filename="a.csv",
+    )
+    batch_b = ImportBatch.objects.create(
+        organization_id=fixture.organization_b_id,
+        created_by_id=fixture.user_b_id,
+        source_filename="b.csv",
+    )
+    ImportRow.objects.create(
+        organization_id=fixture.organization_a_id,
+        batch=batch_a,
+        row_number=2,
+    )
+    ImportRow.objects.create(
+        organization_id=fixture.organization_b_id,
+        batch=batch_b,
+        row_number=2,
+    )
+
+    with tenant_transaction(fixture.organization_a_id, using="app_runtime"):
+        assert set(
+            ImportBatch.objects.using("app_runtime").values_list("id", flat=True)
+        ) == {batch_a.id}
+        assert set(
+            ImportRow.objects.using("app_runtime").values_list("batch_id", flat=True)
+        ) == {batch_a.id}
+        assert user_model.objects.using("app_runtime").count() == 2
+
+        with pytest.raises(DatabaseError) as captured:
+            with transaction.atomic(using="app_runtime"):
+                ImportBatch.objects.using("app_runtime").create(
+                    organization_id=fixture.organization_b_id,
+                    created_by_id=fixture.user_a_id,
+                    source_filename="forbidden.csv",
+                )
+
+    assert_insufficient_privilege(captured)

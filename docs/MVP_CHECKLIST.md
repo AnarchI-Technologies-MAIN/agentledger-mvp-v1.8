@@ -93,11 +93,13 @@ Phase 5 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the can
 
 ## Phase 6 — Three-step CSV import
 
-- [ ] The UI has exactly the three required conceptual steps: select, check/correct, and final approval.
-- [ ] Parsing and validation write only to tenant-isolated staging, never directly to production inventory.
-- [ ] Errors use row-specific, nontechnical corrective language.
-- [ ] Tests cover a valid CSV, invalid row, missing required value, duplicates, cancellation, 100 rows, and cross-tenant staging isolation.
-- [ ] A 100-row CSV can be uploaded, validated, previewed, corrected, confirmed, and imported transactionally with no partial production writes.
+- [x] The UI has exactly the three required conceptual steps: select, check/correct, and final approval.
+- [x] Parsing and validation write only to tenant-isolated staging, never directly to production inventory.
+- [x] Errors use row-specific, nontechnical corrective language.
+- [x] Tests cover a valid CSV, invalid row, missing required value, duplicates, cancellation, 100 rows, and cross-tenant staging isolation.
+- [x] A 100-row CSV can be uploaded, validated, previewed, corrected, confirmed, and imported transactionally with no partial production writes.
+
+Phase 6 evidence, 2026-09-04, local integration against PostgreSQL 18.6: the canonical PowerShell/restricted-role suite passed all 80 tests with 91.73% branch coverage. The server-rendered workflow labels exactly Step 1 Select, Step 2 Check and correct, and Step 3 Final approval. Tests prove valid staging without inventory writes, row-numbered business-language errors, correction into ready state, missing-column rejection, case-insensitive duplicate detection, POST-only cancellation with complete staging cleanup, Viewer denial, 100-row preview and atomic confirmation, rejection of row 101, and rollback with staging preserved when final inventory persistence is fault-injected. Restricted `agentledger_app` tests prove Firm A cannot read Firm B batches or rows and cannot insert a Firm B batch under Firm A context; both staging tables have non-null organization keys and forced RLS. The database also enforces batch/row organization consistency with a composite foreign key. No production import is claimed.
 
 ## Phase 7 — Deterministic policy engine
 

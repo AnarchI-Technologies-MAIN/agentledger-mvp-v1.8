@@ -12,6 +12,7 @@
       {% if request.user.is_authenticated %}
         <nav class="site-nav">
           {% if request.organization_id %}<a href="{% url 'inventory:list' %}">Inventory</a>{% endif %}
+          {% if request.organization_id %}<a href="{% url 'imports:upload' %}">Import CSV</a>{% endif %}
           <a href="{% url 'organizations:workspace-selection' %}">Switch firm</a>
         </nav>
         <form method="post" action="{% url 'accounts:logout' %}">

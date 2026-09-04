@@ -14,5 +14,6 @@ urlpatterns = [
     path("accounts/", include("apps.accounts.urls")),
     path("workspaces/", include("apps.organizations.urls")),
     path("inventory/", include("apps.inventory.urls")),
+    path("imports/", include("apps.imports.urls")),
     path("", home_redirect),
 ]
