@@ -32,7 +32,7 @@ def valid_payload() -> dict:
     snapshot_id = str(uuid4())
     digest = "a" * 64
     return {
-        "context_version": "AL-REPORT-CONTEXT-1",
+        "context_version": "AL-REPORT-CONTEXT-2",
         "title": "AI Risk & ROI Assessment",
         "metadata": {
             "report_identifier": "AL-2026-000014",
@@ -74,7 +74,7 @@ def valid_payload() -> dict:
         "methodology": {
             "summary": "Deterministic assessment.",
             "snapshot_schema_version": "AL-ASSESSMENT-SNAPSHOT-1",
-            "report_context_version": "AL-REPORT-CONTEXT-1",
+            "report_context_version": "AL-REPORT-CONTEXT-2",
             "engine_versions": {},
             "risk_configuration": {},
         },
@@ -145,7 +145,8 @@ def test_customer_strings_are_escaped_and_inert():
     html = render_report_html(payload)
 
     assert "<script>" not in html
-    assert "<img " not in html
+    assert '<img src="file:' not in html
+    assert '<img class="brand-logo" src="data:image/png;base64,' in html
     assert "&lt;script&gt;" in html
     assert "&lt;img src=&quot;file:///etc/passwd&quot;&gt;" in html
 

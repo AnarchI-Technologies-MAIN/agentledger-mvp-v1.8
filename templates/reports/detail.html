@@ -19,7 +19,7 @@
       <div class="summary-grid">
         <div><span>Tools assessed</span><strong>{{ report.executive_summary.inventory_count }}</strong></div>
         <div><span>Policy findings</span><strong>{{ report.executive_summary.finding_count }}</strong></div>
-        <div><span>Monthly software spend</span><strong>${{ report.executive_summary.monthly_spend }}</strong></div>
+        <div><span>Monthly software spend</span><strong>{{ report.executive_summary.monthly_spend_display }}</strong></div>
       </div>
       {% if report.executive_summary.highest_individual_risk %}
         <p>The highest individual tool risk is <strong>{{ report.executive_summary.highest_individual_risk.band }}</strong> ({{ report.executive_summary.highest_individual_risk.score }}/100) for {{ report.executive_summary.highest_individual_risk.tool_name }}.</p>
@@ -34,7 +34,7 @@
           <thead><tr><th>Tool</th><th>Vendor</th><th>Department</th><th>Status</th><th>Monthly cost</th></tr></thead>
           <tbody>
             {% for tool in report.inventory %}
-              <tr><td>{{ tool.display_name }}</td><td>{{ tool.vendor_name }}</td><td>{{ tool.department|default:"Not provided" }}</td><td>{{ tool.status|title }}</td><td>${{ tool.monthly_cost }}</td></tr>
+              <tr><td>{{ tool.display_name }} <span class="muted">({{ tool.provenance.display_name }})</span></td><td>{{ tool.vendor_name }} <span class="muted">({{ tool.provenance.vendor_name }})</span></td><td>{{ tool.department|default:"Unknown" }} <span class="muted">({{ tool.provenance.department }})</span></td><td>{{ tool.status|title }} <span class="muted">({{ tool.provenance.status }})</span></td><td>{{ tool.monthly_cost_display }} <span class="muted">({{ tool.provenance.monthly_cost_cents }})</span></td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -55,7 +55,7 @@
       <h2>Individual tool risk</h2>
       {% for tool in report.inventory %}
         <article class="report-item">
-          <div class="heading-row"><h3>{{ tool.display_name }}</h3><strong>{{ tool.risk.band }} · {{ tool.risk.score }}/100</strong></div>
+          <div class="heading-row"><h3>{{ tool.display_name }}</h3><strong>{{ tool.risk.band }} · {{ tool.risk.score }}/100 ({{ tool.risk.provenance }})</strong></div>
           <p>Risk engine {{ tool.risk.engine_version }} · configuration {{ tool.risk.configuration_version }}</p>
           <details><summary>Show risk arithmetic</summary>
             <ul>
@@ -96,14 +96,15 @@
 
     <section class="card report-section" id="expenditure">
       <h2>AI and software expenditure</h2>
-      <p class="metric">${{ report.ai_expenditure.monthly_total }} <span>total monthly subscription cost</span></p>
+      <p class="metric">{{ report.ai_expenditure.monthly_total_display }} <span>monthly subscription cost</span></p>
       <ul>
-        {% for item in report.ai_expenditure.items %}<li>{{ item.tool_name }} — ${{ item.monthly_cost }}</li>{% endfor %}
+        {% for item in report.ai_expenditure.items %}<li>{{ item.tool_name }} — {{ item.monthly_cost_display }} ({{ item.provenance }})</li>{% endfor %}
       </ul>
     </section>
 
     <section class="card report-section" id="roi">
       <h2>Return on investment</h2>
+      <p class="muted">Results are {{ report.roi.result.provenance }} from the captured assumptions.</p>
       <dl class="detail-grid">
         <div><dt>Monthly value</dt><dd>${{ report.roi.result.monthly_value }}</dd></div>
         <div><dt>Monthly total cost</dt><dd>${{ report.roi.result.monthly_total_cost }}</dd></div>
@@ -113,21 +114,23 @@
       <details><summary>Show ROI arithmetic and assumption sources</summary>
         <ul>{% for line in report.roi.result.arithmetic %}<li>{{ line }}</li>{% endfor %}</ul>
         <h3>Assumption sources</h3>
-        <ul>{% for name, assumption in report.roi.assumptions.items %}<li>{{ name|title }}: {{ assumption.value }} — {{ assumption.provenance }}</li>{% endfor %}</ul>
+        <ul>{% for name, assumption in report.roi.assumptions.items %}<li>{{ name|title }}: {{ assumption.value }} — {{ assumption.provenance_class }}{% if assumption.provenance != assumption.provenance_class %} ({{ assumption.provenance }}){% endif %}</li>{% endfor %}</ul>
       </details>
     </section>
 
     <section class="card report-section" id="methodology">
       <h2>Methodology</h2>
       <p>{{ report.methodology.summary }}</p>
+      <p>{{ report.methodology.evidence_boundary }}</p>
       <p>Report context {{ report.methodology.report_context_version }} · snapshot schema {{ report.methodology.snapshot_schema_version }}</p>
       <ul>{% for engine, version in report.methodology.engine_versions.items %}<li>{{ engine|title }} engine: {{ version }}</li>{% endfor %}</ul>
+      <h3>Provenance labels</h3><ul>{% for label, meaning in report.methodology.provenance_legend.items %}<li><strong>{{ label }}:</strong> {{ meaning }}</li>{% endfor %}</ul>
     </section>
 
     <section class="card report-section" id="evidence">
       <h2>Evidence sources</h2>
       <ul>
-        {% for evidence in report.evidence %}<li>{{ evidence.type|title }} — {{ evidence.reference }}</li>
+        {% for evidence in report.evidence %}<li>{% if evidence.type == "collector_observation" %}<strong>{{ evidence.raw_identifier }}</strong> — {{ evidence.provenance }} by {{ evidence.detector_id }} v{{ evidence.detector_version }} at {{ evidence.observed_at }}; exact catalog reconciliation {{ evidence.reconciliation_provenance }}; evidence SHA-256 {{ evidence.reference }}; scan SHA-256 {{ evidence.scan_hash }}{% else %}{{ evidence.type|title }} — {{ evidence.reference }} ({{ evidence.provenance }}){% endif %}</li>
         {% empty %}<li>No external evidence references were attached to this snapshot.</li>{% endfor %}
       </ul>
     </section>
@@ -146,7 +149,7 @@
       <ul>
         <li>Platform: {{ report.ruleset_versions.platform }}</li>
         <li>Industry: {{ report.ruleset_versions.industry.name }} {{ report.ruleset_versions.industry.version }}</li>
-        {% for rule in report.ruleset_versions.organization %}<li>Organization rule: {{ rule.name }} version {{ rule.version }}</li>{% empty %}<li>Organization rules: none enabled</li>{% endfor %}
+        {% for rule in report.ruleset_versions.organization %}<li>Organization rule: {{ rule.name }} version {{ rule.version }} — {{ rule.source_type }}{% if rule.source_type == "detector" %}; detector {{ rule.detector_id }} v{{ rule.detector_version }}; mapping {{ rule.mapping_id }} v{{ rule.mapping_version }}; source inventory {{ rule.source_inventory_item_id }}; generation fingerprint {{ rule.generation_fingerprint }}{% endif %}</li>{% empty %}<li>Organization rules: none enabled</li>{% endfor %}
       </ul>
     </section>
   </article>

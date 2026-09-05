@@ -1,6 +1,7 @@
 from django.shortcuts import redirect, render
 from django.urls import include, path
 
+from .downloads import download_view
 from .health import healthz, readyz
 
 
@@ -24,6 +25,11 @@ urlpatterns = [
         "readyz",
         readyz,
         name="readyz",
+    ),
+    path(
+        "download/",
+        download_view,
+        name="download",
     ),
     path(
         "accounts/",

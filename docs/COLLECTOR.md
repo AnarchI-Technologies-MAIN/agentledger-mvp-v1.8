@@ -2,8 +2,7 @@
 
 The one-shot Collector observes supported Windows installed-program registry
 entries. The existing Django application receives and interprets bundles. No
-additional Railway service is required. Installer/release delivery and report
-lineage remain Phase 19D.
+additional Railway service is required.
 
 ## Evidence boundary
 
@@ -26,13 +25,25 @@ UUID for rescans of the same device. Observation time changes across runs; sourc
 fingerprints remain stable. Hashes detect content changes, not device authenticity.
 An uploaded bundle is Collector-reported evidence, not remotely attested truth.
 
-## Current execution and ingestion
+## Release and execution
 
-From this checkout, run `python -m collector --device-id UUID --output NEW_JSON_PATH`
-with the locked dependencies installed. The output path must be new. Review the
-bundle before submitting it through `/inventory/discovery/` while signed in to the
-appropriate workspace. OWNER, ADMIN or ASSESSOR membership is required to upload;
-the same session, CSRF and tenant checks as inventory apply.
+The canonical `/download/` page points to the versioned GitHub Release. Version
+0.1.0 contains one standalone Windows executable, one PowerShell bootstrapper,
+one signed installation profile, one versioned module manifest and the public
+verification key. The bootstrapper verifies the RSA-SHA256 profile signature,
+executable SHA-256 and manifest SHA-256 before execution. It persists only a
+pseudonymous device UUID in the current user's Local AppData folder.
+
+The 0.1.0 archive SHA-256 is
+`fe7239402a29aa2bf4e732b2de4f9533ba240ddd0d7d46386d0d659926b57b3a`.
+The executable is not Authenticode-signed; the Download page states that Windows
+may show an unknown-publisher warning. This is not represented as publisher
+attestation.
+
+The signed manifest enables only Windows Installed Programs. Microsoft 365,
+Google Workspace, GitHub, Accounting, Browser, Developer Tooling, Continuous
+Observation and Desktop Portal identities are reserved and explicitly marked
+`post_mvp_not_available`.
 
 Scans and observations are stored in `discovery_scans` and `detection_evidence`.
 Repeated identical bundles return the existing scan. Historical rows remain when
@@ -66,8 +77,13 @@ Verified 2026-09-05 UTC / 2026-09-04 America/Chicago:
   `B273CCEF8FF9F0EF153DCBB5FBB71AEC9426FD1D5645D89773E31CD097F386DC`.
   No real device inventory was committed to the public repository.
 
-The current deliverable is the executable Python Collector core, validated
-upload/storage path, deterministic catalog reconciliation and versioned advisory
-rule generation. Windows packaging, signed installation profiles, versioned
-release publication and assessment/report lineage are open gates. This document
-does not claim those later capabilities are complete.
+## Phase 19D proof
+
+The packaged release generated a complete real Windows scan with 222 bounded
+observations. The unchanged bundle passed ingestion; two observations matched the
+verified GitHub Copilot catalog entry, producing one discovered inventory item and
+one deterministic detector rule. A snapshot retained the Collector evidence hash,
+scan hash and reconciliation lineage; its report preserved automatic-rule
+provenance and all five provenance labels. The exact context rendered to a
+visually inspected four-page PDF. Proof data was rolled back and the raw local
+software inventory remains only under ignored `work/`.

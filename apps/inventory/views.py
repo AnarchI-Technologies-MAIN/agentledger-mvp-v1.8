@@ -26,6 +26,11 @@ from apps.roi.forms import ROIForm
 
 from .forms import InventoryItemForm
 from .models import InventoryItem
+from .provenance import (
+    INVENTORY_FACT_FIELDS,
+    inventory_provenance,
+    normalized_declared_fields,
+)
 
 WRITE_ROLES = {
     OrganizationMember.Role.OWNER,
@@ -110,6 +115,7 @@ def inventory_detail_view(request, item_id):
         "inventory/detail.html",
         {
             "item": item,
+            "item_provenance": inventory_provenance(item),
             "can_write": membership.role in WRITE_ROLES,
             "policy_findings": tuple(
                 result
@@ -176,6 +182,7 @@ def create_inventory_item_view(request):
             item = form.save(commit=False)
             item.organization_id = _organization_id(request)
             item.source_type = InventoryItem.SourceType.MANUAL
+            item.declared_fields = list(INVENTORY_FACT_FIELDS)
             item.save()
             append_audit_event(
                 organization_id=item.organization_id,
@@ -201,7 +208,12 @@ def edit_inventory_item_view(request, item_id):
         form = InventoryItemForm(request.POST, instance=item)
         if form.is_valid():
             changed_fields = sorted(form.changed_data)
-            item = form.save()
+            item = form.save(commit=False)
+            item.declared_fields = sorted(
+                set(item.declared_fields)
+                | set(normalized_declared_fields(changed_fields))
+            )
+            item.save()
             append_audit_event(
                 organization_id=item.organization_id,
                 actor_user_id=request.user.id,
@@ -227,7 +239,8 @@ def archive_inventory_item_action(request, item_id):
     _require_inventory_writer(request)
     item = _inventory_item(request, item_id)
     item.archived_at = timezone.now()
-    item.save(update_fields=("archived_at", "updated_at"))
+    item.declared_fields = sorted(set(item.declared_fields) | {"archived_at"})
+    item.save(update_fields=("archived_at", "declared_fields", "updated_at"))
     append_audit_event(
         organization_id=item.organization_id,
         actor_user_id=request.user.id,

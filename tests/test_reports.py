@@ -152,6 +152,7 @@ def test_canonical_context_contains_every_required_report_section(
     assert context["roi"]["result"]["roi_percent"] == "300.00"
     assert context["evidence"] == [
         {
+            "provenance": "Declared",
             "reference": "EVIDENCE-1",
             "type": "customer_statement",
         }

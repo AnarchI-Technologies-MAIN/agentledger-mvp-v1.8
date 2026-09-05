@@ -15,6 +15,7 @@ from apps.audit.events import (
     EVENT_RECONCILIATION_ACCEPTED,
 )
 from apps.inventory.models import InventoryItem
+from apps.inventory.provenance import normalized_declared_fields
 from apps.organizations.models import OrganizationMember
 
 from .forms import CsvUploadForm
@@ -212,6 +213,7 @@ def confirm_import_action(request, batch_id):
             InventoryItem(
                 organization_id=_organization_id(request),
                 source_type=InventoryItem.SourceType.CSV,
+                declared_fields=normalized_declared_fields(row.data),
                 **row.data,
             )
             for row in rows

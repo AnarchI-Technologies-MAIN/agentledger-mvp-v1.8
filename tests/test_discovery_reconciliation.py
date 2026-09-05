@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from django.urls import reverse
 
+from apps.assessments.snapshots import create_assessment_snapshot
 from apps.audit.models import AuditEvent
 from apps.catalog.matching import CatalogMatch
 from apps.catalog.models import Product, ProductIdentifier, Vendor
@@ -19,6 +22,9 @@ from apps.policies.detector_mappings import (
 from apps.policies.engine import PolicyResult, evaluate_rule
 from apps.policies.models import OrganizationRule
 from apps.policies.organization_rules import compile_organization_rule
+from apps.reports.context import build_report_context
+from apps.reports.services import create_report
+from apps.roi.engine import Assumption, AssumptionProvenance, ROIInputs
 from collector.contract import digest
 from tests.test_collector import encoded, example_bundle
 
@@ -269,3 +275,95 @@ def test_mapping_registry_is_versioned_and_immutable():
     assert len(
         {mapping.mapping_id for mapping in SUPPORTED_AI_PRODUCT_MAPPINGS}
     ) == len(SUPPORTED_AI_PRODUCT_MAPPINGS)
+
+
+def test_reconciled_evidence_rule_and_calculation_lineage_reaches_report(
+    reconciliation_context,
+):
+    user, organization, _product = reconciliation_context
+    ingest_bundle(
+        organization_id=organization.id,
+        actor_user_id=user.id,
+        raw=encoded(example_bundle()),
+    )
+    item = InventoryItem.objects.get()
+    roi_inputs = ROIInputs(
+        monthly_subscription_cost=Assumption(
+            Decimal("0"), AssumptionProvenance.CUSTOMER_SUPPLIED
+        ),
+        implementation_cost=Assumption(
+            Decimal("0"), AssumptionProvenance.CUSTOMER_SUPPLIED
+        ),
+        implementation_amortization_months=Assumption(
+            12, AssumptionProvenance.ESTIMATED
+        ),
+        hours_saved_per_month=Assumption(Decimal("0"), AssumptionProvenance.MEASURED),
+        loaded_hourly_rate=Assumption(
+            Decimal("0"), AssumptionProvenance.CUSTOMER_SUPPLIED
+        ),
+        attributable_revenue=Assumption(Decimal("0"), AssumptionProvenance.ESTIMATED),
+        avoided_monthly_cost=Assumption(Decimal("0"), AssumptionProvenance.MEASURED),
+    )
+    snapshot = create_assessment_snapshot(
+        organization_id=organization.id,
+        created_by_id=user.id,
+        assessed_item_id=item.id,
+        roi_inputs=roi_inputs,
+        captured_at=datetime(2026, 9, 6, tzinfo=UTC),
+    )
+    report = create_report(
+        organization_id=organization.id,
+        assessment_snapshot_id=snapshot.id,
+        created_by_id=user.id,
+    )
+    context = build_report_context(report)
+
+    snapshot_item = snapshot.input_payload["inventory"][0]
+    assert snapshot_item["provenance"] == {
+        "autonomy_level": "Unknown",
+        "business_owner": "Unknown",
+        "business_purpose": "Unknown",
+        "capabilities": "Unknown",
+        "connected_systems": "Unknown",
+        "data_categories": "Unknown",
+        "department": "Unknown",
+        "display_name": "Catalog-derived",
+        "human_approval": "Unknown",
+        "monthly_cost_cents": "Unknown",
+        "permissions": "Unknown",
+        "product_id": "Catalog-derived",
+        "seat_count": "Unknown",
+        "source_type": "Observed",
+        "status": "Unknown",
+        "user_count": "Unknown",
+        "vendor_name": "Catalog-derived",
+    }
+    evidence = snapshot.input_payload["evidence_references"][0]
+    assert evidence["provenance"] == "Observed"
+    assert evidence["reconciliation_provenance"] == "Catalog-derived"
+    assert evidence["reference"] == DetectionEvidence.objects.get().evidence_hash
+
+    rule = snapshot.input_payload["rulesets"]["organization"][0]
+    assert rule["source_type"] == "detector"
+    assert rule["source_inventory_item_id"] == str(item.id)
+    assert rule["generation_fingerprint"]
+    assert rule["detector_id"] == "windows.installed_programs"
+    assert rule["mapping_version"] == MAPPING_REGISTRY_VERSION
+
+    assert context["inventory"][0]["monthly_cost_display"] == "Unknown"
+    assert context["ai_expenditure"]["monthly_total_display"] == (
+        "$0.00 known + 1 unknown tool"
+    )
+    assert context["risk_overview"]["highest_individual_risk"]
+    assert context["individual_risk_findings"][0]["provenance"] == "Calculated"
+    assert context["roi"]["result"]["provenance"] == "Calculated"
+    assert context["evidence"][0]["reference"] == evidence["reference"]
+    assert "paid subscription" in context["methodology"]["evidence_boundary"]
+    assert "observed permissions" in context["methodology"]["evidence_boundary"]
+    assert set(context["methodology"]["provenance_legend"]) == {
+        "Observed",
+        "Declared",
+        "Catalog-derived",
+        "Calculated",
+        "Unknown",
+    }

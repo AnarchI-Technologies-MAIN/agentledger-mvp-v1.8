@@ -12,7 +12,13 @@ from django.db import transaction
 
 from apps.audit.append import append_audit_event
 from apps.audit.events import EVENT_ASSESSMENT_COMPLETED
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import DetectionEvidence, InventoryItem
+from apps.inventory.provenance import (
+    CALCULATED,
+    CATALOG_DERIVED,
+    OBSERVED,
+    inventory_provenance,
+)
 from apps.policies.context import inventory_policy_context
 from apps.policies.engine import ENGINE_VERSION, PolicyResult, evaluate_policies
 from apps.policies.models import OrganizationRule
@@ -76,8 +82,54 @@ def _inventory_payload(item: InventoryItem) -> dict[str, Any]:
         "human_approval": item.human_approval,
         "status": item.status,
         "source_type": item.source_type,
+        "provenance": inventory_provenance(item),
         "archived_at": _timestamp(item.archived_at) if item.archived_at else None,
     }
+
+
+def _discovery_evidence_references(*, organization_id, captured_at):
+    evidence = (
+        DetectionEvidence.objects.select_related("scan")
+        .filter(
+            organization_id=organization_id,
+            reconciliation_status=(DetectionEvidence.ReconciliationStatus.RECONCILED),
+            inventory_item_id__isnull=False,
+            scan__received_at__lte=captured_at,
+        )
+        .order_by("inventory_item_id", "-scan__received_at", "-id")
+    )
+    latest_by_inventory = {}
+    for observation in evidence:
+        latest_by_inventory.setdefault(observation.inventory_item_id, observation)
+    return tuple(
+        {
+            "type": "collector_observation",
+            "reference": observation.evidence_hash,
+            "provenance": OBSERVED,
+            "evidence_id": str(observation.id),
+            "scan_id": str(observation.scan_id),
+            "scan_hash": observation.scan.scan_hash,
+            "coverage": observation.scan.bundle["coverage"].get(
+                observation.record["detector_id"]
+            ),
+            "detector_id": observation.record["detector_id"],
+            "detector_version": observation.record["detector_version"],
+            "observed_at": observation.record["observed_at"],
+            "evidence_type": observation.record["evidence_type"],
+            "evidence_locator": observation.record["evidence_locator"],
+            "raw_identifier": observation.record["raw_identifier"],
+            "reported_version": observation.record["version"],
+            "reported_publisher": observation.record["publisher"],
+            "reconciliation_status": observation.reconciliation_status,
+            "reconciliation_reason": observation.reconciliation_reason,
+            "reconciliation_provenance": CATALOG_DERIVED,
+            "matched_product_id": str(observation.matched_product_id),
+            "inventory_item_id": str(observation.inventory_item_id),
+        }
+        for observation in sorted(
+            latest_by_inventory.values(), key=lambda item: str(item.inventory_item_id)
+        )
+    )
 
 
 def _roi_inputs_payload(inputs: ROIInputs) -> dict[str, Any]:
@@ -127,6 +179,7 @@ def _policy_result_payload(result) -> dict[str, Any]:
 
 def _risk_result_payload(risk) -> dict[str, Any]:
     return {
+        "provenance": CALCULATED,
         "engine_version": risk.engine_version,
         "configuration_version": risk.configuration_version,
         "score": risk.score,
@@ -158,6 +211,7 @@ def _risk_result_payload(risk) -> dict[str, Any]:
 
 def _roi_result_payload(result) -> dict[str, Any]:
     return {
+        "provenance": CALCULATED,
         "engine_version": result.engine_version,
         "monthly_labor_value": _decimal(result.monthly_labor_value),
         "monthly_value": _decimal(result.monthly_value),
@@ -235,6 +289,10 @@ def create_assessment_snapshot(
     organization_rules = tuple(
         compile_organization_rule(record) for record in organization_rule_records
     )
+    captured_evidence = tuple(evidence_references) + _discovery_evidence_references(
+        organization_id=organization_id,
+        captured_at=captured_at,
+    )
 
     input_payload = {
         "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
@@ -242,7 +300,7 @@ def create_assessment_snapshot(
         "organization_id": str(organization_id),
         "captured_at": captured_timestamp,
         "inventory": [_inventory_payload(item) for item in inventory],
-        "evidence_references": list(evidence_references),
+        "evidence_references": list(captured_evidence),
         "rulesets": {
             "platform": NO_PLATFORM_RULESET,
             "industry": {

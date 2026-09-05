@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
     <title>{% block title %}Stewardence{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'brand/stewardence-app-icon-dark.png' %}">
     <link rel="stylesheet" href="{% static 'agentledger.css' %}">
   </head>
   <body class="{% if request.user.is_authenticated %}app-body{% else %}public-body{% endif %}">
@@ -13,7 +14,13 @@
       <div class="app-frame">
         <aside class="app-sidebar">
           <a class="sidebar-brand" href="{% url 'home' %}">
-            <span class="brand-mark">S</span>
+            <img
+              class="brand-mark"
+              src="{% static 'brand/stewardence-app-icon-dark.png' %}"
+              alt=""
+              width="38"
+              height="38"
+            >
             <span>
               <strong>Stewardence</strong>
               <small>AI risk & ROI intelligence</small>
@@ -50,6 +57,11 @@
             <a href="{% url 'organizations:setup' %}">
               <span class="nav-icon">＋</span>
               New workspace
+            </a>
+
+            <a href="{% url 'download' %}">
+              <span class="nav-icon">↓</span>
+              Download Collector
             </a>
           </nav>
 
@@ -95,11 +107,19 @@
     {% else %}
       <header class="public-header">
         <a class="public-brand" href="{% url 'home' %}">
-          <span class="brand-mark">S</span>
+          <img
+            class="brand-mark"
+            src="{% static 'brand/stewardence-app-icon-dark.png' %}"
+            alt=""
+            width="38"
+            height="38"
+          >
           <span>Stewardence</span>
         </a>
 
         <nav class="public-nav" aria-label="Account navigation">
+          <a href="{% url 'download' %}">Download</a>
+
           <a href="{% url 'accounts:login' %}">Log in</a>
 
           <a

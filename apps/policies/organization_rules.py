@@ -62,4 +62,15 @@ def organization_rule_snapshot(record) -> dict[str, Any]:
         "severity": record.severity,
         "explanation": record.explanation,
         "remediation": record.remediation,
+        "source_type": record.source_type,
+        "generation_fingerprint": record.generation_fingerprint or None,
+        "source_inventory_item_id": (
+            str(record.source_inventory_item_id)
+            if record.source_inventory_item_id
+            else None
+        ),
+        "detector_id": record.detector_id or None,
+        "detector_version": record.detector_version or None,
+        "mapping_id": record.mapping_id or None,
+        "mapping_version": record.mapping_version or None,
     }

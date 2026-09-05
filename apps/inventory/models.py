@@ -72,6 +72,7 @@ class InventoryItem(models.Model):
         default="",
         editable=False,
     )
+    declared_fields = models.JSONField(default=list, blank=True, editable=False)
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

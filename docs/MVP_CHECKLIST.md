@@ -619,23 +619,23 @@ Required gates:
 
 Required gates:
 
-- [ ] Assessment snapshots retain relevant sensing/evidence references.
+- [x] Assessment snapshots retain relevant sensing/evidence references.
 
-- [ ] Automatic-rule snapshots preserve rule provenance.
+- [x] Automatic-rule snapshots preserve rule provenance.
 
-- [ ] Report context carries evidence lineage without creating a second assessment/report architecture.
+- [x] Report context carries evidence lineage without creating a second assessment/report architecture.
 
-- [ ] Report/user-facing provenance clearly distinguishes Observed, Declared, Catalog-derived, Calculated, and Unknown information.
+- [x] Report/user-facing provenance clearly distinguishes Observed, Declared, Catalog-derived, Calculated, and Unknown information.
 
-- [ ] Installed software alone is never treated as proof of a paid subscription.
+- [x] Installed software alone is never treated as proof of a paid subscription.
 
-- [ ] Catalog capability is never presented as installation-specific observed permission without specific evidence.
+- [x] Catalog capability is never presented as installation-specific observed permission without specific evidence.
 
-- [ ] Stewardence has a top-level Download path/page or equivalent canonical UI entry for Collector delivery.
+- [x] Stewardence has a top-level Download path/page or equivalent canonical UI entry for Collector delivery.
 
-- [ ] Download architecture defines one Collector installer/bootstrapper plus a signed/versioned installation profile, rather than generating one executable per capability combination.
+- [x] Download architecture defines one Collector installer/bootstrapper plus a signed/versioned installation profile, rather than generating one executable per capability combination.
 
-- [ ] Collector module manifest architecture accommodates:
+- [x] Collector module manifest architecture accommodates:
     - Microsoft 365 Intelligence
     - Google Workspace Intelligence
     - GitHub Intelligence
@@ -645,15 +645,15 @@ Required gates:
     - Continuous Observation
     - Desktop Portal
 
-- [ ] MVP does not present unavailable post-MVP modules as functioning controls.
+- [x] MVP does not present unavailable post-MVP modules as functioning controls.
 
-- [ ] Collector binary/artifact publication does not consume an additional Railway container.
+- [x] Collector binary/artifact publication does not consume an additional Railway container.
 
-- [ ] MVP artifact publication uses the simplest secure/versioned external channel sufficient for first customers.
+- [x] MVP artifact publication uses the simplest secure/versioned external channel sufficient for first customers.
 
-- [ ] Artifact version and SHA-256 are recorded.
+- [x] Artifact version and SHA-256 are recorded.
 
-- [ ] Real end-to-end proof exists:
+- [x] Real end-to-end proof exists:
     Collector scan
     → evidence ingestion
     → deterministic catalog reconciliation
@@ -662,11 +662,17 @@ Required gates:
     → assessment
     → PDF/report provenance.
 
-- [ ] Canonical suite passes.
+- [x] Canonical suite passes.
 
-- [ ] Repository clean enough for release accounting.
+- [x] Repository clean enough for release accounting.
 
-- [ ] Phase committed and pushed before Phase 20 continues.
+- [x] Phase committed and pushed before Phase 20 continues.
+
+**VERIFIED 2026-09-04 America/Chicago / 2026-09-05 UTC.** Evidence:
+`docs/PHASE19D_CHECKPOINT.md`. The canonical restricted-role suite passed all 410
+tests with 88.46% branch coverage. The founder-selected Helix Orbit source is
+preserved byte-for-byte and only lossless crops are used. Production migration
+`inventory.0007` was applied under `agentledger_owner` before deployment.
 
 ## Phase 20 — Railway production deployment
 

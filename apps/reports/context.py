@@ -4,11 +4,18 @@ from decimal import Decimal
 from typing import Any
 
 from apps.assessments.snapshots import verify_snapshot
+from apps.inventory.provenance import (
+    CALCULATED,
+    CATALOG_DERIVED,
+    DECLARED,
+    OBSERVED,
+    UNKNOWN,
+)
 
 from .models import Report
 
 REPORT_TITLE = "AI Risk & ROI Assessment"
-REPORT_CONTEXT_VERSION = "AL-REPORT-CONTEXT-1"
+REPORT_CONTEXT_VERSION = "AL-REPORT-CONTEXT-2"
 RISK_BANDS = ("Low", "Moderate", "High", "Critical")
 
 
@@ -24,6 +31,50 @@ def _require_mapping(value: Any, name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ReportContextError(f"{name} must be an object")
     return value
+
+
+def _legacy_inventory_provenance(item):
+    source_type = item.get("source_type")
+    fields = {
+        key: DECLARED if source_type != "discovered" else UNKNOWN
+        for key in item
+        if key not in {"id", "provenance"}
+    }
+    fields["product_id"] = CATALOG_DERIVED if item.get("product_id") else UNKNOWN
+    fields["source_type"] = OBSERVED if source_type == "discovered" else DECLARED
+    if source_type == "discovered":
+        fields["display_name"] = CATALOG_DERIVED
+        fields["vendor_name"] = CATALOG_DERIVED
+    return fields
+
+
+def _report_evidence(inputs):
+    evidence = inputs.get("evidence_references", [])
+    if not isinstance(evidence, list):
+        raise ReportContextError("Evidence references must be an array")
+    result = []
+    for reference in evidence:
+        reference = _require_mapping(reference, "evidence reference")
+        result.append(
+            {
+                **reference,
+                "provenance": reference.get("provenance", DECLARED),
+            }
+        )
+    return result
+
+
+def _report_assumptions(roi_inputs):
+    assumptions = _require_mapping(roi_inputs.get("assumptions"), "ROI assumptions")
+    result = {}
+    for name, assumption in assumptions.items():
+        assumption = _require_mapping(assumption, "ROI assumption")
+        original = assumption.get("provenance")
+        result[name] = {
+            **assumption,
+            "provenance_class": UNKNOWN if original == UNKNOWN else DECLARED,
+        }
+    return result
 
 
 def build_report_context(report: Report) -> dict[str, Any]:
@@ -63,6 +114,7 @@ def build_report_context(report: Report) -> dict[str, Any]:
     risk_counts = dict.fromkeys(RISK_BANDS, 0)
     highest_risk = None
     total_monthly_cost_cents = 0
+    unknown_monthly_cost_count = 0
 
     for item in inventory:
         item = _require_mapping(item, "inventory item")
@@ -76,7 +128,16 @@ def build_report_context(report: Report) -> dict[str, Any]:
         if band not in risk_counts or not isinstance(score, int):
             raise ReportContextError("Risk result is incomplete")
         risk_counts[band] += 1
-        total_monthly_cost_cents += int(item.get("monthly_cost_cents", 0))
+        provenance = item.get("provenance")
+        if provenance is None:
+            provenance = _legacy_inventory_provenance(item)
+        provenance = _require_mapping(provenance, "inventory provenance")
+        monthly_cost_cents = int(item.get("monthly_cost_cents", 0))
+        monthly_cost_provenance = provenance.get("monthly_cost_cents", UNKNOWN)
+        if monthly_cost_provenance == UNKNOWN:
+            unknown_monthly_cost_count += 1
+        else:
+            total_monthly_cost_cents += monthly_cost_cents
         if highest_risk is None or score > highest_risk["score"]:
             highest_risk = {
                 "score": score,
@@ -86,8 +147,14 @@ def build_report_context(report: Report) -> dict[str, Any]:
 
         tool = {
             **item,
-            "monthly_cost": _money_from_cents(int(item.get("monthly_cost_cents", 0))),
-            "risk": risk,
+            "provenance": provenance,
+            "monthly_cost": _money_from_cents(monthly_cost_cents),
+            "monthly_cost_display": (
+                UNKNOWN
+                if monthly_cost_provenance == UNKNOWN
+                else f"${_money_from_cents(monthly_cost_cents)}"
+            ),
+            "risk": {**risk, "provenance": risk.get("provenance", CALCULATED)},
         }
         tools.append(tool)
 
@@ -127,6 +194,14 @@ def build_report_context(report: Report) -> dict[str, Any]:
         inputs.get("engine_versions"),
         "engine versions",
     )
+    known_spend = _money_from_cents(total_monthly_cost_cents)
+    monthly_spend_display = f"${known_spend} known"
+    if unknown_monthly_cost_count:
+        monthly_spend_display += (
+            f" + {unknown_monthly_cost_count} unknown tool"
+            f"{'s' if unknown_monthly_cost_count != 1 else ''}"
+        )
+    report_assumptions = _report_assumptions(roi_inputs)
 
     return {
         "context_version": REPORT_CONTEXT_VERSION,
@@ -144,7 +219,9 @@ def build_report_context(report: Report) -> dict[str, Any]:
         "executive_summary": {
             "inventory_count": len(tools),
             "highest_individual_risk": highest_risk,
-            "monthly_spend": _money_from_cents(total_monthly_cost_cents),
+            "monthly_spend": known_spend,
+            "monthly_spend_display": monthly_spend_display,
+            "unknown_monthly_cost_count": unknown_monthly_cost_count,
             "monthly_net_value": roi_result.get("monthly_net_value"),
             "finding_count": len(policy_findings),
         },
@@ -159,19 +236,23 @@ def build_report_context(report: Report) -> dict[str, Any]:
         "policy_findings": policy_findings,
         "recommendations": recommendations,
         "ai_expenditure": {
-            "monthly_total": _money_from_cents(total_monthly_cost_cents),
+            "monthly_total": known_spend,
+            "monthly_total_display": monthly_spend_display,
+            "unknown_monthly_cost_count": unknown_monthly_cost_count,
             "items": [
                 {
                     "tool_name": tool["display_name"],
                     "monthly_cost": tool["monthly_cost"],
+                    "monthly_cost_display": tool["monthly_cost_display"],
+                    "provenance": tool["provenance"].get("monthly_cost_cents", UNKNOWN),
                 }
                 for tool in tools
             ],
         },
         "roi": {
             "assessed_item_id": roi_inputs.get("assessed_item_id"),
-            "assumptions": roi_inputs.get("assumptions"),
-            "result": roi_result,
+            "assumptions": report_assumptions,
+            "result": {**roi_result, "provenance": CALCULATED},
         },
         "methodology": {
             "summary": (
@@ -183,8 +264,20 @@ def build_report_context(report: Report) -> dict[str, Any]:
             "report_context_version": REPORT_CONTEXT_VERSION,
             "engine_versions": engine_versions,
             "risk_configuration": risk_configuration,
+            "provenance_legend": {
+                OBSERVED: "Reported directly by bounded Collector evidence.",
+                DECLARED: "Provided or confirmed by a person or imported file.",
+                CATALOG_DERIVED: "Exact result from versioned catalog metadata.",
+                CALCULATED: "Produced by deterministic Stewardence engines.",
+                UNKNOWN: "Not established by the captured evidence.",
+            },
+            "evidence_boundary": (
+                "Installed software does not establish business use, a paid "
+                "subscription, granted permissions, data access, or capabilities. "
+                "Catalog capabilities are not treated as observed permissions."
+            ),
         },
-        "evidence": inputs.get("evidence_references", []),
+        "evidence": _report_evidence(inputs),
         "assessment_date": inputs.get("captured_at"),
         "ruleset_versions": rulesets,
     }
