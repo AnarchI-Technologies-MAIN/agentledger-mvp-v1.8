@@ -12,6 +12,7 @@ def inventory_policy_context(item) -> dict[str, object]:
     return {
         "autonomy_level": item.autonomy_level,
         "business_owner": item.business_owner,
+        "catalog_product_id": str(item.product_id) if item.product_id else None,
         "capabilities": tuple(item.capabilities),
         "connected_systems": tuple(item.connected_systems),
         "data_categories": tuple(item.data_categories),

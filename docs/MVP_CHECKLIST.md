@@ -583,35 +583,37 @@ Required gates:
 
 Required gates:
 
-- [ ] Collector evidence is reconciled through the existing deterministic catalog matcher.
+- [x] Collector evidence is reconciled through the existing deterministic catalog matcher.
 
-- [ ] Exact verified matches can reconcile into discovered inventory.
+- [x] Exact verified matches can reconcile into discovered inventory.
 
-- [ ] Conflicting exact matches go to review required.
+- [x] Conflicting exact matches go to review required.
 
-- [ ] Unknown evidence is not silently classified.
+- [x] Unknown evidence is not silently classified.
 
-- [ ] Repeated scans do not duplicate inventory.
+- [x] Repeated scans do not duplicate inventory.
 
-- [ ] Disappearance from the latest scan is represented without erasing history.
+- [x] Disappearance from the latest scan is represented without erasing history.
 
-- [ ] A versioned detector/product-to-rule mapping registry exists.
+- [x] A versioned detector/product-to-rule mapping registry exists.
 
-- [ ] Applicable organization rules can be instantiated deterministically from supported detected inventory.
+- [x] Applicable organization rules can be instantiated deterministically from supported detected inventory.
 
-- [ ] Detector-created rules preserve detector/mapping/inventory provenance.
+- [x] Detector-created rules preserve detector/mapping/inventory provenance.
 
-- [ ] Detector-created rules have a stable idempotency fingerprint or equivalent.
+- [x] Detector-created rules have a stable idempotency fingerprint or equivalent.
 
-- [ ] Human-created rules are never overwritten by automatic reconciliation.
+- [x] Human-created rules are never overwritten by automatic reconciliation.
 
-- [ ] Rules UI clearly identifies detector-created rules and why they were applied.
+- [x] Rules UI clearly identifies detector-created rules and why they were applied.
 
-- [ ] discovery.completed and reconciliation.accepted audit evidence is recorded using the existing audit system.
+- [x] discovery.completed and reconciliation.accepted audit evidence is recorded using the existing audit system.
 
-- [ ] Cross-tenant discovery/reconciliation access is denied by application logic and RLS.
+- [x] Cross-tenant discovery/reconciliation access is denied by application logic and RLS.
 
-- [ ] Adversarial/idempotency/tenant tests pass.
+- [x] Adversarial/idempotency/tenant tests pass.
+
+**VERIFIED 2026-09-04 America/Chicago / 2026-09-05 UTC.** Evidence: `docs/PHASE19C_CHECKPOINT.md`; exact verified product-name matches use the existing catalog matcher, unknown/conflicting evidence remains explicitly unresolved, discovered inventory and advisory rules are idempotent, latest complete per-device scans represent disappearance while retaining historical evidence, detector-rule lineage is visible and immutable through the UI, and same-tenant composite database constraints prevent cross-tenant evidence/rule references. The canonical restricted-role suite passed all 406 tests with 88.53% coverage. Production migrations were applied under `agentledger_owner` before deployment. Phase 19D delivery, snapshot/report lineage, artifact publication and end-to-end proof remain open.
 
 ## Phase 19D — evidence lineage, collector delivery contract, and freeze preparation
 

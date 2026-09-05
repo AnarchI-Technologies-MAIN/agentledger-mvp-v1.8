@@ -135,12 +135,15 @@ def detail_rule_view(request, rule_id):
     rule = _rule(request, rule_id)
     membership = _membership(request)
     compile_organization_rule(rule)
+    can_write = membership.role in WRITE_ROLES
     return render(
         request,
         "policies/detail.html",
         {
             "rule": rule,
-            "can_write": membership.role in WRITE_ROLES,
+            "can_write": can_write,
+            "can_edit": can_write
+            and rule.source_type == OrganizationRule.SourceType.MANUAL,
             "definition_json": json.dumps(rule.definition, indent=2, sort_keys=True),
         },
     )
@@ -162,6 +165,10 @@ def create_rule_view(request):
 def edit_rule_view(request, rule_id):
     _require_writer(request)
     rule = _rule(request, rule_id)
+    if rule.source_type == OrganizationRule.SourceType.DETECTOR:
+        raise PermissionDenied(
+            "Collector-created rules retain their provenance and cannot be edited."
+        )
     form = OrganizationRuleForm(
         request.POST or None,
         instance=rule,
@@ -176,6 +183,10 @@ def edit_rule_view(request, rule_id):
 def duplicate_rule_action(request, rule_id):
     _require_writer(request)
     source = _rule(request, rule_id)
+    if source.source_type == OrganizationRule.SourceType.DETECTOR:
+        raise PermissionDenied(
+            "Collector-created rules retain their provenance and cannot be duplicated."
+        )
     compile_organization_rule(source)
     base_name = f"{source.name} (copy)"
     name = base_name
@@ -243,6 +254,10 @@ def toggle_rule_action(request, rule_id):
 def delete_rule_action(request, rule_id):
     _require_writer(request)
     rule = _rule(request, rule_id)
+    if rule.source_type == OrganizationRule.SourceType.DETECTOR:
+        raise PermissionDenied(
+            "Collector-created rules retain their provenance and cannot be deleted."
+        )
     name = rule.name
     append_audit_event(
         organization_id=rule.organization_id,

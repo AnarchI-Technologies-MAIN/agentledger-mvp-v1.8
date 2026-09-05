@@ -50,6 +50,7 @@ ALLOWED_CONTEXT_FIELDS = frozenset(
     {
         "autonomy_level",
         "business_owner",
+        "catalog_product_id",
         "capabilities",
         "connected_systems",
         "data_categories",

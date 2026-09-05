@@ -6,8 +6,11 @@ import pytest
 from django.db import DatabaseError, transaction
 
 from agentledger.tenancy.context import tenant_transaction
-from apps.inventory.models import DetectionEvidence, DiscoveryScan
+from apps.accounts.models import User
+from apps.catalog.models import Product, Vendor
+from apps.inventory.models import DetectionEvidence, DiscoveryScan, InventoryItem
 from apps.organizations.models import Organization
+from apps.policies.models import OrganizationRule
 from collector.contract import fingerprint
 from tests.test_collector import example_bundle
 
@@ -98,3 +101,79 @@ def test_worker_cannot_insert_a_scan(evidence_fixture):
                     observed_at=scan.observed_at,
                     bundle=scan.bundle,
                 )
+
+
+def test_reconciliation_cannot_reference_another_tenants_inventory(
+    evidence_fixture,
+):
+    org_a, org_b, _scan, _evidence = evidence_fixture
+    vendor = Vendor.objects.create(name="Cross-tenant vendor")
+    product = Product.objects.create(
+        vendor=vendor,
+        name="Cross-tenant product",
+        category="Test",
+    )
+    foreign_item = InventoryItem.objects.create(
+        organization=org_a,
+        product=product,
+        display_name=product.name,
+        vendor_name=vendor.name,
+    )
+    bundle = example_bundle()
+    with tenant_transaction(org_b.id, using="app_runtime"):
+        own_scan = DiscoveryScan.objects.using("app_runtime").create(
+            organization_id=org_b.id,
+            scan_hash="a" * 64,
+            device_id=bundle["device_id"],
+            observed_at=bundle["observed_at"],
+            bundle=bundle,
+        )
+    record = bundle["evidence"][0]
+    with pytest.raises(DatabaseError):
+        with tenant_transaction(org_b.id, using="app_runtime"):
+            DetectionEvidence.objects.using("app_runtime").create(
+                organization_id=org_b.id,
+                scan_id=own_scan.id,
+                fingerprint=fingerprint(record),
+                evidence_hash=record["evidence_hash"],
+                record=record,
+                reconciliation_status="reconciled",
+                reconciliation_reason="exact_verified_identifier",
+                matched_identifier_type="product_name",
+                matched_product_id=product.id,
+                inventory_item_id=foreign_item.id,
+            )
+
+
+def test_detector_rule_cannot_reference_another_tenants_inventory(
+    evidence_fixture,
+):
+    org_a, org_b, _scan, _evidence = evidence_fixture
+    user = User.objects.create_user("cross-tenant-rule@example.com")
+    foreign_item = InventoryItem.objects.create(
+        organization=org_a,
+        display_name="Foreign inventory",
+        vendor_name="Foreign vendor",
+    )
+    with pytest.raises(DatabaseError):
+        with tenant_transaction(org_b.id, using="app_runtime"):
+            OrganizationRule.objects.using("app_runtime").create(
+                organization_id=org_b.id,
+                name="Cross-tenant detector rule",
+                definition={
+                    "all": [
+                        {"field": "department", "operator": "equals", "value": "Tax"}
+                    ],
+                    "effects": [{"type": "recommend_review", "message": "Review it."}],
+                },
+                explanation="Must fail.",
+                remediation="Must fail.",
+                source_type="detector",
+                generation_fingerprint="b" * 64,
+                source_inventory_item_id=foreign_item.id,
+                detector_id="windows.installed_programs",
+                detector_version="1",
+                mapping_id="test.mapping",
+                mapping_version="1",
+                created_by_id=user.id,
+            )

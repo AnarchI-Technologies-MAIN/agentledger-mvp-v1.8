@@ -66,6 +66,12 @@ class InventoryItem(models.Model):
         choices=SourceType,
         default=SourceType.MANUAL,
     )
+    discovery_fingerprint = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        editable=False,
+    )
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -77,6 +83,30 @@ class InventoryItem(models.Model):
             models.Index(
                 fields=("organization", "status"),
                 name="inventory_org_status_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("organization", "discovery_fingerprint"),
+                condition=models.Q(source_type="discovered"),
+                name="inventory_discovery_fingerprint_unique",
+            ),
+            models.UniqueConstraint(
+                fields=("id", "organization"),
+                name="inventory_id_org_unique",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        source_type="discovered",
+                    )
+                    & ~models.Q(discovery_fingerprint="")
+                    | (
+                        ~models.Q(source_type="discovered")
+                        & models.Q(discovery_fingerprint="")
+                    )
+                ),
+                name="discovered_inventory_has_fingerprint",
             ),
         ]
         ordering = ("display_name", "id")
@@ -115,6 +145,11 @@ class DiscoveryScan(models.Model):
 
 
 class DetectionEvidence(models.Model):
+    class ReconciliationStatus(models.TextChoices):
+        RECONCILED = "reconciled", "Exact catalog match"
+        REVIEW = "review", "Review required"
+        UNKNOWN = "unknown", "Unknown"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     scan = models.ForeignKey(
@@ -123,6 +158,30 @@ class DetectionEvidence(models.Model):
     fingerprint = models.CharField(max_length=64)
     evidence_hash = models.CharField(max_length=64)
     record = models.JSONField()
+    reconciliation_status = models.CharField(
+        max_length=16,
+        choices=ReconciliationStatus,
+        default=ReconciliationStatus.UNKNOWN,
+    )
+    reconciliation_reason = models.CharField(
+        max_length=64,
+        default="not_reconciled_at_ingest",
+    )
+    matched_identifier_type = models.CharField(max_length=32, blank=True)
+    matched_product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="detection_evidence",
+    )
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="detection_evidence",
+    )
 
     class Meta:
         db_table = "detection_evidence"
@@ -130,7 +189,22 @@ class DetectionEvidence(models.Model):
             models.UniqueConstraint(
                 fields=("organization", "scan", "fingerprint"),
                 name="evidence_scan_identity_unique",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        reconciliation_status="reconciled",
+                        matched_product__isnull=False,
+                        inventory_item__isnull=False,
+                    )
+                    | models.Q(
+                        reconciliation_status__in=("review", "unknown"),
+                        matched_product__isnull=True,
+                        inventory_item__isnull=True,
+                    )
+                ),
+                name="evidence_reconciliation_shape",
+            ),
         ]
 
     def __str__(self):

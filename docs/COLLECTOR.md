@@ -2,8 +2,8 @@
 
 The one-shot Collector observes supported Windows installed-program registry
 entries. The existing Django application receives and interprets bundles. No
-additional Railway service is required. Installer/release delivery and automatic
-catalog/rule reconciliation remain Phases 19C–19D.
+additional Railway service is required. Installer/release delivery and report
+lineage remain Phase 19D.
 
 ## Evidence boundary
 
@@ -36,10 +36,21 @@ the same session, CSRF and tenant checks as inventory apply.
 
 Scans and observations are stored in `discovery_scans` and `detection_evidence`.
 Repeated identical bundles return the existing scan. Historical rows remain when
-subsequent scans omit observations. Both tables force RLS; app has SELECT/INSERT,
-worker SELECT only. Runtime UPDATE/DELETE are absent. A composite foreign key
-prevents evidence from referencing a different tenant's scan. Policy and cost
-decisions do not execute in the Collector.
+subsequent scans omit observations. Exact verified product-name matches use the
+existing server catalog matcher and can create one idempotent discovered inventory
+item. Unknown matches remain unknown; conflicting exact matches require review.
+The latest complete scan for each device can show prior matched inventory that is
+no longer observed without changing or deleting the historical rows.
+
+Supported detected AI products can create one versioned advisory organization rule.
+The rule records detector, mapping, inventory and generation-fingerprint provenance.
+It recommends human review and does not claim observed use, subscription cost,
+permissions or access. Automatic reconciliation never updates a human-created rule.
+
+The evidence tables force RLS; app has SELECT/INSERT and worker SELECT only. Runtime
+UPDATE/DELETE are absent. Composite foreign keys prevent evidence and detector rules
+from referencing another tenant's scan or inventory. Policy and cost decisions do
+not execute in the Collector.
 
 ## Phase 19B proof
 
@@ -55,7 +66,8 @@ Verified 2026-09-05 UTC / 2026-09-04 America/Chicago:
   `B273CCEF8FF9F0EF153DCBB5FBB71AEC9426FD1D5645D89773E31CD097F386DC`.
   No real device inventory was committed to the public repository.
 
-The current deliverable is the executable Python Collector core and validated
-upload/storage path. Windows packaging, signed installation profiles, versioned
-release publication, deterministic reconciliation and report lineage are open
-gates. This document does not claim those later capabilities are complete.
+The current deliverable is the executable Python Collector core, validated
+upload/storage path, deterministic catalog reconciliation and versioned advisory
+rule generation. Windows packaging, signed installation profiles, versioned
+release publication and assessment/report lineage are open gates. This document
+does not claim those later capabilities are complete.

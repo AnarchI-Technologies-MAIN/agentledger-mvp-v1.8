@@ -249,6 +249,7 @@ def test_owner_can_edit_inventory_without_changing_source(client, inventory_cont
         display_name="Before",
         vendor_name="Vendor",
         source_type=InventoryItem.SourceType.DISCOVERED,
+        discovery_fingerprint="a" * 64,
     )
 
     response = client.post(

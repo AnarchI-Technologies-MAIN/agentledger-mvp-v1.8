@@ -9,6 +9,10 @@ from apps.organizations.models import Organization
 
 
 class OrganizationRule(models.Model):
+    class SourceType(models.TextChoices):
+        MANUAL = "manual", "Created by a person"
+        DETECTOR = "detector", "Created from Collector evidence"
+
     class Result(models.TextChoices):
         FAIL = "FAIL", "Does not meet the rule"
         WARNING = "WARNING", "Needs attention"
@@ -41,6 +45,30 @@ class OrganizationRule(models.Model):
     )
     explanation = models.TextField()
     remediation = models.TextField()
+    source_type = models.CharField(
+        max_length=16,
+        choices=SourceType,
+        default=SourceType.MANUAL,
+        editable=False,
+    )
+    generation_fingerprint = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        editable=False,
+    )
+    source_inventory_item = models.ForeignKey(
+        "inventory.InventoryItem",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="detector_rules",
+        editable=False,
+    )
+    detector_id = models.CharField(max_length=100, blank=True, editable=False)
+    detector_version = models.CharField(max_length=32, blank=True, editable=False)
+    mapping_id = models.CharField(max_length=100, blank=True, editable=False)
+    mapping_version = models.CharField(max_length=32, blank=True, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -54,8 +82,37 @@ class OrganizationRule(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=("organization", "name"),
-                name="unique_organization_rule_name",
-            )
+                condition=models.Q(source_type="manual"),
+                name="unique_manual_organization_rule_name",
+            ),
+            models.UniqueConstraint(
+                fields=("organization", "generation_fingerprint"),
+                condition=models.Q(source_type="detector"),
+                name="unique_detector_rule_fingerprint",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        source_type="detector",
+                        source_inventory_item__isnull=False,
+                    )
+                    & ~models.Q(generation_fingerprint="")
+                    & ~models.Q(detector_id="")
+                    & ~models.Q(detector_version="")
+                    & ~models.Q(mapping_id="")
+                    & ~models.Q(mapping_version="")
+                    | models.Q(
+                        source_type="manual",
+                        generation_fingerprint="",
+                        source_inventory_item__isnull=True,
+                        detector_id="",
+                        detector_version="",
+                        mapping_id="",
+                        mapping_version="",
+                    )
+                ),
+                name="organization_rule_provenance_shape",
+            ),
         ]
         indexes = [
             models.Index(fields=("organization",), name="organization_rule_org_idx")
