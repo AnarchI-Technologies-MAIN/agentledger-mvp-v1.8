@@ -139,7 +139,10 @@ class ReportArtifact(models.Model):
     def save(self, *args, **kwargs):
         if not self._state.adding:
             raise ValidationError("Report artifact metadata is immutable")
-        self.full_clean()
+        # The worker deliberately cannot read organization identity rows. The
+        # database foreign key still enforces existence, while clean() below
+        # verifies that the report and snapshot carry the same tenant identity.
+        self.full_clean(exclude={"organization"})
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

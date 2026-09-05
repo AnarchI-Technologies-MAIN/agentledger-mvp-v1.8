@@ -153,13 +153,21 @@ def import_csv(page: Page, *, base_url: str, item_name: str) -> None:
     page.get_by_role("button", name="Check spreadsheet", exact=True).click()
     page.wait_for_url(re.compile(r"/imports/[0-9a-f-]+/review/$"))
     require(
-        "Step 2 of 3" in page.locator("body").inner_text(),
+        page.get_by_role(
+            "heading",
+            name="Check and confirm your imported data",
+            exact=True,
+        ).is_visible(),
         "CSV review step was skipped.",
     )
     page.get_by_role("button", name="Continue to final review", exact=True).click()
     page.wait_for_url(re.compile(r"/imports/[0-9a-f-]+/final/$"))
     require(
-        "Step 3 of 3" in page.locator("body").inner_text(),
+        page.get_by_role(
+            "heading",
+            name="Final review and approval",
+            exact=True,
+        ).is_visible(),
         "CSV final-approval step was skipped.",
     )
     page.get_by_role("button", name="Save and finish setup", exact=True).click()
@@ -178,33 +186,27 @@ def create_and_test_rule(
     item_name: str,
 ) -> None:
     page.goto(absolute_url(base_url, "/rules/add/"))
-    page.get_by_label("Rule name", exact=True).fill(rule_name)
-    page.get_by_label("This software accesses", exact=True).select_option("payroll")
-    page.get_by_label("This software can", exact=True).select_option(
-        "external_transfer"
-    )
-    page.get_by_label("Minimum risk level", exact=True).select_option("HIGH")
-    page.get_by_label("Require this control", exact=True).select_option(
-        "human_approval"
-    )
-    page.get_by_label("Finding to create", exact=True).fill(
+    page.get_by_label("Rule name").fill(rule_name)
+    page.get_by_label("This software accesses").select_option("payroll")
+    page.get_by_label("This software can").select_option("external_transfer")
+    page.get_by_label("Minimum risk level").select_option("HIGH")
+    page.get_by_label("Require this control").select_option("human_approval")
+    page.get_by_label("Finding to create").fill(
         "Payroll transfer lacks recorded human approval."
     )
-    page.get_by_label("Review to recommend", exact=True).fill(
+    page.get_by_label("Review to recommend").fill(
         "Confirm recipient and approval boundaries."
     )
-    page.get_by_label("When this rule matches", exact=True).select_option("FAIL")
-    page.get_by_label("Finding severity", exact=True).select_option("HIGH")
-    page.get_by_label("Explain why this matters", exact=True).fill(
+    page.get_by_label("When this rule matches").select_option("FAIL")
+    page.get_by_label("Finding severity").select_option("HIGH")
+    page.get_by_label("Explain why this matters").fill(
         "Payroll data transfer requires an accountable person."
     )
-    page.get_by_label("Recommended next step", exact=True).fill(
+    page.get_by_label("Recommended next step").fill(
         "Require recorded approval before every external transfer."
     )
-    page.get_by_label("Use this rule in assessments", exact=True).set_checked(True)
-    page.get_by_label("Try this rule against", exact=True).select_option(
-        label=item_name
-    )
+    page.get_by_label("Use this rule in assessments").set_checked(True)
+    page.get_by_label("Try this rule against").select_option(label=item_name)
     page.get_by_role("button", name="Test without saving", exact=True).click()
     require(
         "Test result:" in page.locator("body").inner_text(),
