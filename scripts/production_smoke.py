@@ -78,8 +78,17 @@ def create_workspace(
         "value"
     )
     require(bool(organization_id), "Created workspace identifier was unavailable.")
-    card.get_by_role("button").click()
-    page.wait_for_url(re.compile(r"/inventory/$"))
+    with page.expect_navigation():
+        card.get_by_role("button").click()
+    require(
+        urlparse(page.url).path == "/workspaces/",
+        "Workspace activation did not return to workspace selection.",
+    )
+    inventory_response = page.goto(absolute_url(base_url, "/inventory/"))
+    require(
+        inventory_response is not None and inventory_response.status == 200,
+        "Activated workspace inventory did not load.",
+    )
 
     return Workspace(
         email=email,
@@ -309,8 +318,17 @@ def logout_and_reverify_history(
     card = page.locator("article.workspace-card").filter(
         has_text=workspace.organization_name
     )
-    card.get_by_role("button").click()
-    page.wait_for_url(re.compile(r"/inventory/$"))
+    with page.expect_navigation():
+        card.get_by_role("button").click()
+    require(
+        urlparse(page.url).path == "/workspaces/",
+        "Workspace activation failed after login.",
+    )
+    inventory_response = page.goto(absolute_url(base_url, "/inventory/"))
+    require(
+        inventory_response is not None and inventory_response.status == 200,
+        "Workspace inventory failed after login.",
+    )
 
     assessment_response = page.goto(assessment_url)
     require(
