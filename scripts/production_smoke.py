@@ -52,7 +52,11 @@ def create_workspace(
     page.get_by_role(
         "button", name="Continue to organization setup", exact=True
     ).click()
-    page.wait_for_url(re.compile(r"/organizations/new/$"))
+    if urlparse(page.url).path != "/organizations/new/":
+        errors = page.locator(".errorlist, .error-panel").all_inner_texts()
+        raise SmokeFailure(
+            "Signup validation failed: " + " | ".join(errors or ["no form error"])
+        )
 
     page.get_by_label("Organization name", exact=True).fill(organization_name)
     page.get_by_label("Industry", exact=True).select_option("accounting_bookkeeping")
@@ -397,8 +401,8 @@ def main() -> int:
     marker = f"{run_id}-{random_suffix}"
     password_a = f"Stewardence!{secrets.token_urlsafe(24)}7a"
     password_b = f"Stewardence!{secrets.token_urlsafe(24)}7b"
-    email_a = f"smoke-{marker}-a@example.invalid"
-    email_b = f"smoke-{marker}-b@example.invalid"
+    email_a = f"smoke-{marker}-a@example.com"
+    email_b = f"smoke-{marker}-b@example.com"
     organization_a = f"Stewardence Release Smoke A {marker}"
     organization_b = f"Stewardence Release Smoke B {marker}"
     manual_item = f"Payroll Transfer Verifier {marker}"
