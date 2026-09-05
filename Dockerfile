@@ -11,8 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY --from=uv /uv /bin/uv
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,id=stewardence-app-uv,target=/root/.cache/uv \
-    uv sync --frozen --no-default-groups --no-install-project
+RUN uv sync --frozen --no-default-groups --no-install-project
 
 COPY manage.py ./
 COPY apps ./apps

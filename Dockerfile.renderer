@@ -14,8 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY --from=uv /uv /bin/uv
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,id=stewardence-renderer-uv,target=/root/.cache/uv \
-    uv sync --frozen --only-group renderer --no-install-project \
+RUN uv sync --frozen --only-group renderer --no-install-project \
     && uv run --no-sync playwright install --only-shell chromium \
     && rm -rf /tmp/* /var/lib/apt/lists/*
 
