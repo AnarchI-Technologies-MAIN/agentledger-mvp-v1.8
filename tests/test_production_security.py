@@ -74,6 +74,36 @@ def test_production_security_settings_are_explicit_and_hardened():
     assert "https://agentledger-production.up.railway.app" in completed.stdout
 
 
+def test_production_collectstatic_serves_the_branded_login_without_database(tmp_path):
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, re; import django; django.setup(); "
+            "from django.conf import settings; "
+            "settings.STATIC_ROOT = sys.argv[1]; "
+            "from django.core.management import call_command; "
+            "call_command('collectstatic', interactive=False, verbosity=0); "
+            "from django.test import Client; client = Client(); "
+            "page = client.get('/accounts/login/', secure=True, "
+            "HTTP_HOST='agentledger.example'); "
+            "assert page.status_code == 200; "
+            "html = page.content.decode(); assert 'Stewardence' in html; "
+            r"asset = re.search(r'/static/agentledger\.[a-f0-9]+\.css', html).group(); "
+            "css = client.get(asset, secure=True, HTTP_HOST='agentledger.example'); "
+            "assert css.status_code == 200; "
+            "assert css['Content-Type'].startswith('text/css'); "
+            "assert b'--ink-950' in b''.join(css.streaming_content)",
+            str(tmp_path / "static"),
+        ],
+        env=production_environment(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
 @pytest.mark.parametrize(
     "weak_secret",
     [
@@ -229,6 +259,11 @@ def test_production_hsts_is_deliberate_initial_ramp_up():
                 "assert settings.SECURE_HSTS_PRELOAD is False; "
                 "assert settings.SECURE_CONTENT_TYPE_NOSNIFF is True; "
                 "assert settings.X_FRAME_OPTIONS == 'DENY'; "
+                "assert settings.STATIC_URL == '/static/'; "
+                "assert settings.MIDDLEWARE[1] == "
+                "'whitenoise.middleware.WhiteNoiseMiddleware'; "
+                "assert settings.STORAGES['staticfiles']['BACKEND'] == "
+                "'whitenoise.storage.CompressedManifestStaticFilesStorage'; "
                 "assert settings.SECURE_PROXY_SSL_HEADER == "
                 "('HTTP_X_FORWARDED_PROTO', 'https')"
             ),

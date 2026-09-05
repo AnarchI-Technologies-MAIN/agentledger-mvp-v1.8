@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ rule.name }} — AgentLedger{% endblock %}
+{% block title %}{{ rule.name }} — Stewardence{% endblock %}
 {% block content %}
   <section class="page-heading heading-row"><div><p class="eyebrow">{% if rule.enabled %}Enabled{% else %}Disabled{% endif %} · version {{ rule.version }}</p><h1>{{ rule.name }}</h1><p>{{ rule.explanation }}</p></div>{% if can_write %}<a class="button" href="{% url 'policies:edit' rule.id %}">Edit and test</a>{% endif %}</section>
   <section class="card"><h2>What this rule means</h2><p><strong>When</strong> this software accesses {{ rule.definition.all.0.value }} <strong>and</strong> can {{ rule.definition.all.1.value }}, the assessment records {{ rule.get_result_on_match_display|lower }} at {{ rule.get_severity_display|lower }} severity.</p><p><strong>Why:</strong> {{ rule.explanation }}</p><p><strong>Next step:</strong> {{ rule.remediation }}</p><details><summary>View technical details</summary><pre>{{ definition_json }}</pre></details></section>

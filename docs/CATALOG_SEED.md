@@ -1,4 +1,4 @@
-# AgentLedger bounded catalog seed
+# Stewardence bounded catalog seed
 
 The version-one seed contains exactly 40 recognizable software and AI product records. It is a matching aid, not a procurement recommendation, security approval, permission claim, retention claim, or representation of current customer use.
 

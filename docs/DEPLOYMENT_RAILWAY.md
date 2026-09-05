@@ -1,12 +1,12 @@
-# AgentLedger Railway Deployment Runbook
+# Stewardence Railway Deployment Runbook
 
-**Status:** Control-plane runbook only. Nothing has been deployed.
+**Status:** Web, worker, renderer, PostgreSQL and private storage have been deployed. Phase 20 remains open: the founder's Phases 19A–19D amendments, production customer-flow verification, backups and restore evidence are not yet complete. The working product name is Stewardence; existing runtime identifiers remain compatible with the original AgentLedger baseline.
 **Production authority:** The owner-approved Railway amendment supersedes SPEC v1.8 self-hosting, Docker Compose edge, Caddy, `flock`, and home-network production material where they conflict.
 
 ## Production topology
 
 ```text
-Railway project: AgentLedger Production
+Railway project: stewardence-production
 
 public Internet
       |
@@ -52,7 +52,7 @@ All must be true before Railway project creation:
 
 ## Project and service creation
 
-1. Create one Railway project named **AgentLedger Production** and a production environment.
+1. Create one Railway project named **Stewardence Production** and a production environment.
 2. Add Railway PostgreSQL without a public TCP proxy.
 3. Add the private `reports` Storage Bucket in the intended region; bucket region cannot be changed later.
 4. Add `web`, `worker`, and `renderer` from the private GitHub source.

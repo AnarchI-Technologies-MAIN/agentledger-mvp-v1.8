@@ -13,7 +13,7 @@ LISTEN_PORT = 8080
 
 
 class RendererRequestHandler(BaseHTTPRequestHandler):
-    server_version = "AgentLedgerRenderer/1"
+    server_version = "StewardenceRenderer/1"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path != "/healthz":

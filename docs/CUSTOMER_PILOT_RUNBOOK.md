@@ -1,10 +1,10 @@
-# AgentLedger Founder-Assisted Customer Pilot Runbook
+# Stewardence Founder-Assisted Customer Pilot Runbook
 
 **Activation gate:** Do not use this runbook with customer data until the Sellable MVP release gate, Railway production smoke test, report-storage disposition, and backup restore drill are verified.
 
 ## Offer
 
-Sell the result as an **AI Risk & ROI Review powered by AgentLedger**, not an abstract governance platform or continuous-monitoring service.
+Sell the result as an **AI Risk & ROI Review powered by Stewardence**, not an abstract governance platform or continuous-monitoring service.
 
 The initial consistent price experiment is **$350** for setup help, inventory assistance, risk review, ROI review, professional PDF, and founder walkthrough. Payment is validation; do not call it a donation or default to a free beta.
 
@@ -37,7 +37,7 @@ After the customer accepts and pays:
 5. Schedule a 30–45 minute onboarding session.
 6. Confirm the customer understands the assessment is advisory and based on supplied evidence.
 
-No public signup or automated subscription billing is required.
+Public self-service signup and guided workspace setup are required. Founder-assisted onboarding remains available; automated subscription billing remains outside MVP.
 
 ## Intake
 
@@ -82,7 +82,7 @@ For each material finding record one of:
 
 Ask which finding surprised the customer, which is wrong, which is obvious but useful to document, which would cause a change, and who else should receive the report. Target at least 70% of material findings rated useful or valid.
 
-Then ask: **If AgentLedger stopped existing tomorrow, what part would you actually miss?** Record the answer without steering it.
+Then ask: **If Stewardence stopped existing tomorrow, what part would you actually miss?** Record the answer without steering it.
 
 Ask how quickly the information becomes outdated and what change—new tool, permissions, cost, or risk—would make the customer return. This is evidence for or against post-MVP monitoring; it is not permission to build it yet.
 

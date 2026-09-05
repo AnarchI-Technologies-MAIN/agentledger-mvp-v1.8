@@ -1,10 +1,14 @@
-# AgentLedger Sellable MVP Checklist
+# Stewardence Sellable MVP Checklist
 
 **Control baseline:** SPEC-1-AgentLedger-v1.8 plus the owner-approved Railway hosting amendment dated 2026-09-04.
 **Specification SHA-256:** `E42E9D400D93B269A968322C988A9CDE5B0F244484E81641206CC092DA4AA401`
 **Implementation-handoff SHA-256:** `770AE605E4C71C4C23379748CC64D7D4EEFF9A9CA700756A5118017B2279F17A`
 
 This is the release ledger, not a feature wish list. A checked item means its stated automated tests and required manual verification passed against the named environment. Code existence alone is not proof.
+
+**Founder amendments, 2026-09-04:** Stewardence is the working product name (formerly AgentLedger). Public self-service signup, guided organization setup, and user-initiated deterministic sensing are required for MVP. Phases 19A–19D below supersede the earlier signup/discovery exclusions and must close before Phase 20. Original Phases 21–23 remain required. The supplied specification and its hash, historical evidence, Python package names, database roles, and cryptographic identifiers remain unchanged for compatibility. Name availability is founder-reported research, not a recorded legal clearance.
+
+**Current naming:** GitHub `AnarchI-Technologies-MAIN/stewardence-mvp-v1.8`; Railway project `stewardence-production`, workspace `stewardence-productions`. The existing project, service, database, volume, and bucket identities are retained. The canonical local checkout remains at its existing `agentledger` path.
 
 Status syntax:
 
@@ -509,9 +513,162 @@ Next authorized phase:
 - Django check --deploy exited successfully. Its only security warning was security.W021, expected because HSTS preload is intentionally deferred during the initial 3600-second ramp-up.
 - No Railway deployment, production variable mutation, custom-domain change, production database mutation, or production bucket operation occurred in Phase 19.
 - **Phase 19 status: VERIFIED.**
+## Phase 19A — public customer entry and guided setup
+
+Required gates:
+
+- [x] Public anonymous landing page exposes real Stewardence value and a working signup path.
+
+- [x] Public self-service signup creates a valid account without invite-only dependency.
+
+- [x] Passwords flow through Django's secure password hashing path and are never stored in readable form.
+
+- [x] Case-insensitive duplicate account identity is rejected safely.
+
+- [x] Signup abuse honeypot remains functional without being confused with organization metadata.
+
+- [x] Successful signup logs the user in and enters guided organization setup.
+
+- [x] Guided setup creates an organization plus OWNER membership and activates that organization.
+
+- [x] Guided setup offers only real starting paths: CSV import, manual inventory, or workspace exploration.
+
+- [x] Customer-facing navigation exposes only real product functionality.
+
+- [x] Login/signup/workspace/setup pages share the accepted Stewardence visual language.
+
+- [x] Static assets resolve correctly in development and production collectstatic/WhiteNoise configuration.
+
+- [x] Remaining rule-checkbox/file-input/footer polish is either corrected or explicitly judged acceptable for MVP.
+
+- [x] Focused customer-entry tests pass.
+
+- [x] Adjacent auth/workspace/rule tests pass.
+
+- [x] Canonical suite passes at the phase gate.
+
+**VERIFIED 2026-09-04 America/Chicago (2026-09-05 UTC).** Founder-created signup, guided setup and visual shell retained; naming and production-role registration fixes verified. See `docs/PHASE19A_CHECKPOINT.md` for exact tests and production boundaries.
+
+## Phase 19B — deterministic evidence and local collector core
+
+Required gates:
+
+- [ ] Stewardence defines a versioned deterministic evidence contract.
+
+- [ ] Evidence preserves detector ID/version, observation time, source locator/type, identifier, version/publisher where available, and evidence hash.
+
+- [ ] Evidence collection excludes passwords, cookies, saved credentials, browser history, and unrelated raw personal files.
+
+- [ ] Tenant-scoped discovery/evidence storage has forced PostgreSQL RLS equivalent to existing tenant data protections.
+
+- [ ] Repeated evidence ingestion is idempotent.
+
+- [ ] Historical evidence is not destructively deleted when absent from a later scan.
+
+- [ ] A one-shot Stewardence Collector runs on Windows without requiring a new Railway service/container.
+
+- [ ] The MVP Collector includes the minimum useful deterministic Windows/local detector pack.
+
+- [ ] Collector decisions are limited to observation/normalization. Risk and policy decisions remain server-side.
+
+- [ ] Collector submits/uploads a bounded deterministic evidence bundle to the existing Stewardence web service.
+
+- [ ] Ingestion strictly validates supported schema/version/size/hash.
+
+- [ ] A real Windows scan produces reproducible evidence for at least one supported local source.
+
+## Phase 19C — deterministic reconciliation and automatic rules
+
+Required gates:
+
+- [ ] Collector evidence is reconciled through the existing deterministic catalog matcher.
+
+- [ ] Exact verified matches can reconcile into discovered inventory.
+
+- [ ] Conflicting exact matches go to review required.
+
+- [ ] Unknown evidence is not silently classified.
+
+- [ ] Repeated scans do not duplicate inventory.
+
+- [ ] Disappearance from the latest scan is represented without erasing history.
+
+- [ ] A versioned detector/product-to-rule mapping registry exists.
+
+- [ ] Applicable organization rules can be instantiated deterministically from supported detected inventory.
+
+- [ ] Detector-created rules preserve detector/mapping/inventory provenance.
+
+- [ ] Detector-created rules have a stable idempotency fingerprint or equivalent.
+
+- [ ] Human-created rules are never overwritten by automatic reconciliation.
+
+- [ ] Rules UI clearly identifies detector-created rules and why they were applied.
+
+- [ ] discovery.completed and reconciliation.accepted audit evidence is recorded using the existing audit system.
+
+- [ ] Cross-tenant discovery/reconciliation access is denied by application logic and RLS.
+
+- [ ] Adversarial/idempotency/tenant tests pass.
+
+## Phase 19D — evidence lineage, collector delivery contract, and freeze preparation
+
+Required gates:
+
+- [ ] Assessment snapshots retain relevant sensing/evidence references.
+
+- [ ] Automatic-rule snapshots preserve rule provenance.
+
+- [ ] Report context carries evidence lineage without creating a second assessment/report architecture.
+
+- [ ] Report/user-facing provenance clearly distinguishes Observed, Declared, Catalog-derived, Calculated, and Unknown information.
+
+- [ ] Installed software alone is never treated as proof of a paid subscription.
+
+- [ ] Catalog capability is never presented as installation-specific observed permission without specific evidence.
+
+- [ ] Stewardence has a top-level Download path/page or equivalent canonical UI entry for Collector delivery.
+
+- [ ] Download architecture defines one Collector installer/bootstrapper plus a signed/versioned installation profile, rather than generating one executable per capability combination.
+
+- [ ] Collector module manifest architecture accommodates:
+    - Microsoft 365 Intelligence
+    - Google Workspace Intelligence
+    - GitHub Intelligence
+    - Accounting Intelligence
+    - Browser Intelligence
+    - Developer Tooling Intelligence
+    - Continuous Observation
+    - Desktop Portal
+
+- [ ] MVP does not present unavailable post-MVP modules as functioning controls.
+
+- [ ] Collector binary/artifact publication does not consume an additional Railway container.
+
+- [ ] MVP artifact publication uses the simplest secure/versioned external channel sufficient for first customers.
+
+- [ ] Artifact version and SHA-256 are recorded.
+
+- [ ] Real end-to-end proof exists:
+    Collector scan
+    → evidence ingestion
+    → deterministic catalog reconciliation
+    → inventory
+    → deterministic applicable rule
+    → assessment
+    → PDF/report provenance.
+
+- [ ] Canonical suite passes.
+
+- [ ] Repository clean enough for release accounting.
+
+- [ ] Phase committed and pushed before Phase 20 continues.
+
 ## Phase 20 — Railway production deployment
 
-- [ ] 20.1: A private GitHub repository exists, `main` is protected from force pushes, release candidates are tagged, and no secrets are committed.
+**OPEN:** Production closure is deferred until Phases 19A–19D are verified. No new Railway service is authorized for the Collector or artifact hosting. Use the existing Django service for ingestion and the simplest versioned HTTPS artifact channel (GitHub Releases first). Continuous observation and unavailable capability packs remain post-MVP.
+
+- [ ] 20.1: The owner-approved public GitHub repository exists, `main` is protected from force pushes, release candidates are tagged, and no secrets are committed. Repository visibility was explicitly changed by the founder.
 - [ ] 20.2: The Railway project and production environment exist with Railway PostgreSQL and no public database TCP proxy.
 - [ ] 20.3: Separate owner/app/worker database credentials are provisioned; long-running web and worker services never receive owner credentials.
 - [ ] 20.4: `web` is the only publicly reachable application service, binds Gunicorn to Railway's injected port, and uses `/readyz` as deployment healthcheck.
@@ -533,6 +690,8 @@ Next authorized phase:
 - [ ] A polished demo assessment and PDF contain at least one genuinely justified Low, Moderate, High, and Critical finding.
 
 ## Phase 22 — MVP UX walkthrough
+
+- [ ] The real journey passes: anonymous visitor → signup → guided organization setup → Collector download/run → evidence ingestion → reconciliation → inventory → automatic rule provenance → assessment → report → stored/retrievable PDF. Manual inventory and CSV remain working alternatives.
 
 - [ ] The complete 18-step customer workflow passes without Django admin, including historical assessment retrieval after logout/login.
 - [ ] A small organization reaches its first useful manual assessment in under 30 minutes.
@@ -582,9 +741,13 @@ Next authorized phase:
 
 ## Explicitly excluded from the MVP
 
-Microsoft and Google connectors, QuickBooks/Xero connectors, continuous/scheduled discovery, continuous monitoring, browser extension, SIEM integration, automated enforcement, automated permission changes, LLM risk decisions, subscription billing, public signup, additional industry packs, mobile application, Node backend, React SPA, Redis, Celery, RabbitMQ, Kafka, Elasticsearch, Kubernetes, and Caddy are not MVP work.
+Full Microsoft 365, Google Workspace, GitHub and Accounting connectors; full Desktop Portal; continuous/scheduled discovery and monitoring; persistent endpoint fleet management; browser extension product; SIEM; packet inspection; automated enforcement or permission changes; LLM discovery, classification, rule generation or risk decisions; subscription billing; additional industry packs; mobile application; Node backend; React SPA; Redis; Celery; RabbitMQ; Kafka; Elasticsearch; Kubernetes; Caddy; capability-pack marketplace; and arbitrary third-party plugin execution remain excluded. Public signup and user-initiated deterministic local discovery are now required founder amendments.
+
+The Collector observes bounded evidence; the existing cloud application interprets it. Every downstream result must distinguish Observed, Declared, Catalog-derived, Calculated, and Unknown. Installation alone is not proof of cost or of installation-specific resource access. No additional Railway container is used for sensing or artifact publication.
 
 ## Freeze gate
+
+- [ ] Phases 19A–19D and original Phases 20–23 are verified under the amended scope. Deterministic sensing and automatic applicable rule creation are the final substantive MVP additions; after acceptance, product feature work stops.
 
 - [ ] All Phase 23 items and every Sellable MVP acceptance-matrix item are verified with durable evidence.
 - [ ] Git tag `v0.1.0` identifies the frozen release.

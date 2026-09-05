@@ -19,7 +19,7 @@ export default defineRailway(() => {
     sizeMB: 500,
   });
   const reports = bucket("reports", { region: "iad" });
-  const source = github("AnarchI-Technologies-MAIN/agentledger-mvp-v1.8", {
+  const source = github("AnarchI-Technologies-MAIN/stewardence-mvp-v1.8", {
     branch: "main",
   });
   const commonRuntime = {
@@ -73,7 +73,7 @@ export default defineRailway(() => {
     replicas: { iad: 1 },
   });
 
-  return project("agentledger-production", {
+  return project("stewardence-production", {
     resources: [Postgres, postgresVolume, reports, web, worker, renderer],
   });
 });

@@ -22,6 +22,7 @@ from apps.imports.models import ImportBatch, ImportRow
 from apps.inventory.models import InventoryItem
 from apps.jobs.models import BackgroundJob
 from apps.organizations.models import Organization, OrganizationMember
+from apps.organizations.services import create_owned_workspace
 from apps.policies.models import OrganizationRule
 from apps.reports.models import Report, ReportArtifact
 from apps.reports.services import create_report
@@ -498,6 +499,56 @@ def test_identity_bootstrap_exposes_only_the_users_own_membership(
 
     assert membership_organizations == {fixture.organization_a_id}
     assert organization_ids == {fixture.organization_a_id}
+
+
+def test_public_onboarding_works_under_restricted_app_role(isolation_fixture):
+    user = (
+        get_user_model()
+        .objects.db_manager("app_runtime")
+        .create_user("selfservice@example.com", "New-Strong!Password97")
+    )
+    assert user.check_password("New-Strong!Password97")
+    assert not user.is_staff and not user.is_superuser
+    new_id = create_owned_workspace(
+        user_id=user.id, name="New firm", industry="other", using="app_runtime"
+    )
+    with identity_transaction(user.id, using="app_runtime"):
+        membership = OrganizationMember.objects.using("app_runtime").get()
+        assert membership.organization_id == new_id
+        assert membership.role == "owner"
+    with identity_transaction(isolation_fixture.user_a_id, using="app_runtime"):
+        assert not Organization.objects.using("app_runtime").filter(id=new_id).exists()
+
+
+def test_public_registration_cannot_create_privileged_account(isolation_fixture):
+    with pytest.raises(DatabaseError) as captured:
+        with transaction.atomic(using="app_runtime"):
+            get_user_model().objects.db_manager("app_runtime").create_superuser(
+                "escalation@example.com", "New-Strong!Password97"
+            )
+    assert_insufficient_privilege(captured)
+
+
+def test_onboarding_does_not_grant_direct_membership_insert(isolation_fixture):
+    with pytest.raises(DatabaseError) as captured:
+        with identity_transaction(isolation_fixture.user_a_id, using="app_runtime"):
+            OrganizationMember.objects.using("app_runtime").create(
+                user_id=isolation_fixture.user_a_id,
+                organization_id=isolation_fixture.organization_b_id,
+                role="owner",
+            )
+    assert_insufficient_privilege(captured)
+
+
+def test_worker_cannot_provision_workspace(isolation_fixture):
+    with pytest.raises(DatabaseError) as captured:
+        create_owned_workspace(
+            user_id=isolation_fixture.user_a_id,
+            name="Forbidden",
+            industry="other",
+            using="worker_runtime",
+        )
+    assert_insufficient_privilege(captured)
 
 
 def test_app_role_unfiltered_orm_and_raw_sql_are_tenant_isolated(

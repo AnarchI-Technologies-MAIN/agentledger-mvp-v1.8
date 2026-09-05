@@ -1,4 +1,4 @@
-# AgentLedger Security Invariants
+# Stewardence Security Invariants
 
 **Authority:** SPEC-1-AgentLedger-v1.8 plus the owner-approved Railway hosting amendment. These are release gates, not aspirations.
 
@@ -53,7 +53,7 @@
 6. Reports are stored in a private object bucket, not an ephemeral service filesystem.
 7. Report access requires authentication, current membership, tenant RLS, and report-ownership authorization before a short-lived presigned GET or authenticated proxy download. Knowing an object key or report UUID grants no authority.
 8. Object metadata includes key, content type, SHA-256, size, report ID, creation timestamp, and snapshot ID.
-9. Current Railway Bucket documentation states that API server-side encryption controls, object versioning, object locks, and lifecycle rules are not supported. This is an unresolved pre-customer security disposition, not a feature AgentLedger may claim.
+9. Current Railway Bucket documentation states that API server-side encryption controls, object versioning, object locks, and lifecycle rules are not supported. This is an unresolved pre-customer security disposition, not a feature Stewardence may claim.
 
 ## Credential boundary
 
@@ -65,7 +65,7 @@
 
 ## Product-claim boundary
 
-1. AgentLedger assesses and recommends. The MVP does not claim third-party enforcement, automatic blocking, token revocation, account disabling, permission changes, compliance certification, or guaranteed security.
+1. Stewardence assesses and recommends. The MVP does not claim third-party enforcement, automatic blocking, token revocation, account disabling, permission changes, compliance certification, or guaranteed security.
 2. Demo entries are manual inventory and never imply a live connector.
 3. Health, container state, source code, or a local test does not alone prove production callable state.
 4. A deployment healthcheck proves activation readiness at deployment time; it is not continuous availability monitoring.

@@ -1,32 +1,125 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}AgentLedger{% endblock %}</title>
-    <link rel="stylesheet" href="/static/agentledger.css">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}Stewardence{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'agentledger.css' %}">
   </head>
-  <body>
-    <header class="site-header">
-      <a class="brand" href="{% url 'organizations:workspace-selection' %}">AgentLedger</a>
-      {% if request.user.is_authenticated %}
-        <nav class="site-nav">
-          {% if request.organization_id %}<a href="{% url 'inventory:list' %}">Inventory</a>{% endif %}
-          {% if request.organization_id %}<a href="{% url 'imports:upload' %}">Import CSV</a>{% endif %}
-          {% if request.organization_id %}<a href="{% url 'policies:list' %}">Rules</a>{% endif %}
-          <a href="{% url 'organizations:workspace-selection' %}">Switch firm</a>
+  <body class="{% if request.user.is_authenticated %}app-body{% else %}public-body{% endif %}">
+    {% if request.user.is_authenticated %}
+      <div class="app-frame">
+        <aside class="app-sidebar">
+          <a class="sidebar-brand" href="{% url 'home' %}">
+            <span class="brand-mark">S</span>
+            <span>
+              <strong>Stewardence</strong>
+              <small>AI risk & ROI intelligence</small>
+            </span>
+          </a>
+
+          <nav class="sidebar-nav" aria-label="Primary navigation">
+            <p class="nav-label">Workspace</p>
+
+            <a href="{% url 'organizations:workspace-selection' %}">
+              <span class="nav-icon">◇</span>
+              Firms
+            </a>
+
+            {% if request.organization_id %}
+              <a href="{% url 'inventory:list' %}">
+                <span class="nav-icon">▦</span>
+                Inventory
+              </a>
+
+              <a href="{% url 'imports:upload' %}">
+                <span class="nav-icon">⇧</span>
+                Import CSV
+              </a>
+
+              <a href="{% url 'policies:list' %}">
+                <span class="nav-icon">⌁</span>
+                Rules
+              </a>
+            {% endif %}
+
+            <p class="nav-label nav-label-spaced">Organization</p>
+
+            <a href="{% url 'organizations:setup' %}">
+              <span class="nav-icon">＋</span>
+              New workspace
+            </a>
+          </nav>
+
+          <div class="sidebar-footer">
+            <div class="user-chip">
+              <span class="user-avatar">
+                {{ request.user.get_short_name|first|upper }}
+              </span>
+              <span>
+                <strong>{{ request.user.get_short_name }}</strong>
+                <small>{{ request.user.email }}</small>
+              </span>
+            </div>
+
+            <form method="post" action="{% url 'accounts:logout' %}">
+              {% csrf_token %}
+              <button class="sidebar-logout" type="submit">Log out</button>
+            </form>
+          </div>
+        </aside>
+
+        <div class="app-content">
+          <header class="app-topbar">
+            <div>
+              <p class="topbar-kicker">Stewardence workspace</p>
+              <p class="topbar-title">
+                Deterministic AI risk and ROI assessment
+              </p>
+            </div>
+          </header>
+
+          <main class="page-shell">
+            {% for message in messages %}
+              <div class="notice" role="status">
+                {{ message }}
+              </div>
+            {% endfor %}
+
+            {% block content %}{% endblock %}
+          </main>
+        </div>
+      </div>
+    {% else %}
+      <header class="public-header">
+        <a class="public-brand" href="{% url 'home' %}">
+          <span class="brand-mark">S</span>
+          <span>Stewardence</span>
+        </a>
+
+        <nav class="public-nav" aria-label="Account navigation">
+          <a href="{% url 'accounts:login' %}">Log in</a>
+
+          <a
+            class="button button-compact"
+            href="{% url 'accounts:signup' %}"
+          >
+            Create account
+          </a>
         </nav>
-        <form method="post" action="{% url 'accounts:logout' %}">
-          {% csrf_token %}
-          <button class="button button-secondary" type="submit">Log out</button>
-        </form>
-      {% endif %}
-    </header>
-    <main class="page-shell">
-      {% for message in messages %}
-        <p class="notice" role="status">{{ message }}</p>
-      {% endfor %}
-      {% block content %}{% endblock %}
-    </main>
+      </header>
+
+      <main class="public-main">
+        {% for message in messages %}
+          <div class="notice public-notice" role="status">
+            {{ message }}
+          </div>
+        {% endfor %}
+
+        {% block public_content %}{% endblock %}
+      </main>
+    {% endif %}
   </body>
 </html>

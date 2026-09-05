@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ item.display_name }} — AgentLedger{% endblock %}
+{% block title %}{{ item.display_name }} — Stewardence{% endblock %}
 {% block content %}
   <section class="page-heading heading-row"><div><p class="eyebrow">{{ item.get_status_display }} · {{ item.get_source_type_display }}</p><h1>{{ item.display_name }}</h1><p>{{ item.vendor_name }}</p></div>{% if can_write and not item.archived_at %}<a class="button" href="{% url 'inventory:edit' item.id %}">Edit</a>{% endif %}</section>
   <dl class="card detail-grid">
