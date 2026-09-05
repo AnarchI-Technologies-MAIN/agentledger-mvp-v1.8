@@ -3,6 +3,7 @@ name: agentledger-development
 services:
   postgres:
     image: postgres:18
+    restart: unless-stopped
     environment:
       POSTGRES_DB: agentledger_dev
       POSTGRES_USER: agentledger

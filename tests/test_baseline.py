@@ -139,3 +139,24 @@ class BaselineTests(SimpleTestCase):
         configuration = runpy.run_path("src/agentledger/gunicorn.conf.py")
 
         assert configuration["bind"] == "0.0.0.0:9123"
+
+    @patch.dict(
+        os.environ,
+        {"WEB_CONCURRENCY": "2", "GUNICORN_THREADS": "6"},
+    )
+    def test_gunicorn_concurrency_is_explicitly_bounded(self):
+        configuration = runpy.run_path("src/agentledger/gunicorn.conf.py")
+
+        assert configuration["worker_class"] == "gthread"
+        assert configuration["workers"] == 2
+        assert configuration["threads"] == 6
+        assert configuration["max_requests"] == 1_000
+        assert configuration["worker_tmp_dir"] == "/dev/shm"  # noqa: S108
+
+    @patch.dict(os.environ, {"GUNICORN_THREADS": "17"})
+    def test_gunicorn_rejects_unbounded_thread_configuration(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "GUNICORN_THREADS must be between 1 and 16",
+        ):
+            runpy.run_path("src/agentledger/gunicorn.conf.py")

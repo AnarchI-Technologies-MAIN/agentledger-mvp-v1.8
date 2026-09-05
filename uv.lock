@@ -13,7 +13,6 @@ dependencies = [
     { name = "gunicorn" },
     { name = "httpx" },
     { name = "idna" },
-    { name = "playwright" },
     { name = "psycopg", extra = ["binary"] },
     { name = "rfc8785" },
     { name = "whitenoise" },
@@ -28,6 +27,10 @@ dev = [
     { name = "pytest-django" },
     { name = "ruff" },
 ]
+renderer = [
+    { name = "django" },
+    { name = "playwright" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -37,7 +40,6 @@ requires-dist = [
     { name = "gunicorn", specifier = ">=23,<24" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "idna", specifier = "==3.19" },
-    { name = "playwright", specifier = "==1.62.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3,<3.4" },
     { name = "rfc8785", specifier = "==0.1.4" },
     { name = "whitenoise", specifier = ">=6.12,<7" },
@@ -51,6 +53,10 @@ dev = [
     { name = "pytest-cov", specifier = ">=7,<8" },
     { name = "pytest-django", specifier = ">=4.11,<5" },
     { name = "ruff", specifier = ">=0.14,<0.15" },
+]
+renderer = [
+    { name = "django", specifier = ">=5.2.13,<5.3" },
+    { name = "playwright", specifier = "==1.62.0" },
 ]
 
 [[package]]

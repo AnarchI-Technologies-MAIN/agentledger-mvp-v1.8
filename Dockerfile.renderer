@@ -15,16 +15,20 @@ RUN groupadd --gid 10001 renderer \
     && useradd --uid 10001 --gid renderer --home-dir /app --no-create-home renderer
 
 WORKDIR /app
-COPY --from=uv /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project \
-    && uv run --no-sync playwright install --with-deps chromium \
-    && chmod -R a+rX /ms-playwright
+RUN --mount=from=uv,source=/uv,target=/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --only-group renderer --no-install-project \
+    && uv run --no-sync playwright install --with-deps --only-shell chromium \
+    && chmod -R a+rX /ms-playwright \
+    && rm -rf /tmp/* /var/lib/apt/lists/*
 
 COPY renderer ./renderer
 COPY static/brand/stewardence-helix-orbit-light.png ./static/brand/stewardence-helix-orbit-light.png
 
 RUN install -d -o renderer -g renderer -m 0700 /work/output
 USER renderer
+
+EXPOSE 8080
 
 CMD [".venv/bin/python", "-m", "renderer.server"]

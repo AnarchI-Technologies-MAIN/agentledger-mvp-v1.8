@@ -10,7 +10,6 @@ dependencies = [
     "gunicorn>=23,<24",
     "httpx>=0.28,<0.29",
     "idna==3.19",
-    "playwright==1.62.0",
     "psycopg[binary]>=3.3,<3.4",
     "rfc8785==0.1.4",
     "whitenoise>=6.12,<7",
@@ -25,9 +24,14 @@ dev = [
     "pytest-django>=4.11,<5",
     "ruff>=0.14,<0.15",
 ]
+renderer = [
+    "django>=5.2.13,<5.3",
+    "playwright==1.62.0",
+]
 
 [tool.uv]
 package = false
+default-groups = ["dev", "renderer"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "agentledger.settings.development"

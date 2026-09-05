@@ -33,7 +33,7 @@ jobs:
           enable-cache: true
 
       - name: Install locked application dependencies
-        run: uv sync --frozen --no-dev
+        run: uv sync --frozen --only-group renderer
 
       - name: Install the pinned Chromium runtime
         run: uv run --no-sync playwright install --with-deps chromium

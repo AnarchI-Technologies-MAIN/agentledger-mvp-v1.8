@@ -8,23 +8,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-RUN groupadd --system agentledger \
-    && useradd --system --gid agentledger --home-dir /app agentledger
+RUN groupadd --gid 10001 agentledger \
+    && useradd --uid 10001 --gid agentledger --home-dir /app --no-create-home agentledger
 
 WORKDIR /app
-COPY --from=uv /uv /uvx /bin/
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
-
-COPY manage.py ./
-COPY apps ./apps
-COPY collector ./collector
-COPY src ./src
-COPY templates ./templates
-COPY static ./static
-
-RUN chown -R agentledger:agentledger /app
+RUN chown agentledger:agentledger /app
+COPY --chown=agentledger:agentledger pyproject.toml uv.lock ./
 USER agentledger
+RUN --mount=from=uv,source=/uv,target=/bin/uv \
+    --mount=type=cache,target=/app/.cache/uv,uid=10001,gid=10001 \
+    uv sync --frozen --no-default-groups --no-install-project
+
+COPY --chown=agentledger:agentledger manage.py ./
+COPY --chown=agentledger:agentledger apps ./apps
+COPY --chown=agentledger:agentledger collector ./collector
+COPY --chown=agentledger:agentledger src ./src
+COPY --chown=agentledger:agentledger templates ./templates
+COPY --chown=agentledger:agentledger static ./static
 
 RUN DJANGO_SETTINGS_MODULE=agentledger.settings.production \
     DJANGO_SECRET_KEY=build-only-staticfiles-secret-with-no-runtime-authority-123456 \
@@ -36,6 +36,8 @@ RUN DJANGO_SETTINGS_MODULE=agentledger.settings.production \
     REPORTS_BUCKET_ACCESS_KEY_ID=build \
     REPORTS_BUCKET_SECRET_ACCESS_KEY=build \
     REPORT_RENDERER_URL=http://localhost \
-    uv run --no-sync python manage.py collectstatic --no-input
+    .venv/bin/python manage.py collectstatic --no-input
 
-CMD ["uv", "run", "--no-sync", "gunicorn", "--config", "src/agentledger/gunicorn.conf.py", "agentledger.wsgi:application"]
+EXPOSE 8000
+
+CMD [".venv/bin/gunicorn", "--config", "src/agentledger/gunicorn.conf.py", "agentledger.wsgi:application"]
