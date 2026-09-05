@@ -52,7 +52,7 @@ def create_workspace(
     page.get_by_role(
         "button", name="Continue to organization setup", exact=True
     ).click()
-    if urlparse(page.url).path != "/organizations/new/":
+    if urlparse(page.url).path != "/workspaces/new/":
         errors = page.locator(".errorlist, .error-panel").all_inner_texts()
         raise SmokeFailure(
             "Signup validation failed: " + " | ".join(errors or ["no form error"])
@@ -61,16 +61,16 @@ def create_workspace(
     page.get_by_label("Organization name", exact=True).fill(organization_name)
     page.get_by_label("Industry", exact=True).select_option("accounting_bookkeeping")
     page.get_by_role("button", name="Continue", exact=True).click()
-    page.wait_for_url(re.compile(r"/organizations/new/start/$"))
+    page.wait_for_url(re.compile(r"/workspaces/new/start/$"))
     page.locator(f"input[name='start_choice'][value='{start_choice}']").check()
     page.get_by_role("button", name="Review setup", exact=True).click()
-    page.wait_for_url(re.compile(r"/organizations/new/review/$"))
+    page.wait_for_url(re.compile(r"/workspaces/new/review/$"))
     require(
         organization_name in page.locator("body").inner_text(),
         "Organization review omitted the organization name.",
     )
     page.get_by_role("button", name="Create workspace", exact=True).click()
-    page.goto(absolute_url(base_url, "/organizations/"))
+    page.goto(absolute_url(base_url, "/workspaces/"))
 
     card = page.locator("article.workspace-card").filter(has_text=organization_name)
     require(card.count() == 1, "Created workspace was not uniquely listed.")
@@ -168,7 +168,7 @@ def create_and_test_rule(
     rule_name: str,
     item_name: str,
 ) -> None:
-    page.goto(absolute_url(base_url, "/policies/add/"))
+    page.goto(absolute_url(base_url, "/rules/add/"))
     page.get_by_label("Rule name", exact=True).fill(rule_name)
     page.get_by_label("This software accesses", exact=True).select_option("payroll")
     page.get_by_label("This software can", exact=True).select_option(
@@ -202,7 +202,7 @@ def create_and_test_rule(
         "Rule test result was not displayed.",
     )
     page.get_by_role("button", name="Save rule", exact=True).click()
-    page.wait_for_url(re.compile(r"/policies/[0-9a-f-]+/$"))
+    page.wait_for_url(re.compile(r"/rules/[0-9a-f-]+/$"))
     require(
         rule_name in page.locator("body").inner_text(),
         "Saved rule detail omitted the rule name.",
@@ -305,7 +305,7 @@ def logout_and_reverify_history(
     page.get_by_label("Email address", exact=True).fill(workspace.email)
     page.get_by_label("Password", exact=True).fill(workspace.password)
     page.get_by_role("button", name="Log in", exact=True).click()
-    page.wait_for_url(re.compile(r"/organizations/$"))
+    page.wait_for_url(re.compile(r"/workspaces/$"))
     card = page.locator("article.workspace-card").filter(
         has_text=workspace.organization_name
     )
@@ -359,7 +359,7 @@ def verify_cross_tenant_denials(
         "Foreign PDF download was not denied.",
     )
 
-    page.goto(absolute_url(base_url, "/organizations/"))
+    page.goto(absolute_url(base_url, "/workspaces/"))
     csrf_cookie = next(
         (
             cookie["value"]
@@ -370,11 +370,11 @@ def verify_cross_tenant_denials(
     )
     require(bool(csrf_cookie), "CSRF cookie was absent for activation denial.")
     activation_response = context.request.post(
-        absolute_url(base_url, "/organizations/activate/"),
+        absolute_url(base_url, "/workspaces/activate/"),
         form={"organization_id": foreign_organization_id},
         headers={
             "X-CSRFToken": csrf_cookie,
-            "Referer": absolute_url(base_url, "/organizations/"),
+            "Referer": absolute_url(base_url, "/workspaces/"),
         },
     )
     require(
