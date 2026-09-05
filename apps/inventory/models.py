@@ -88,3 +88,50 @@ class InventoryItem(models.Model):
     def monthly_cost_display(self) -> str:
         amount = Decimal(self.monthly_cost_cents) / Decimal(100)
         return f"{amount:.2f}"
+
+
+class DiscoveryScan(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    scan_hash = models.CharField(max_length=64)
+    device_id = models.UUIDField()
+    observed_at = models.DateTimeField()
+    received_at = models.DateTimeField(auto_now_add=True)
+    bundle = models.JSONField()
+
+    class Meta:
+        db_table = "discovery_scans"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("organization", "scan_hash"), name="scan_org_hash_unique"
+            ),
+            models.UniqueConstraint(
+                fields=("id", "organization"), name="scan_id_org_unique"
+            ),
+        ]
+
+    def __str__(self):
+        return self.scan_hash
+
+
+class DetectionEvidence(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    scan = models.ForeignKey(
+        DiscoveryScan, on_delete=models.PROTECT, related_name="observations"
+    )
+    fingerprint = models.CharField(max_length=64)
+    evidence_hash = models.CharField(max_length=64)
+    record = models.JSONField()
+
+    class Meta:
+        db_table = "detection_evidence"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("organization", "scan", "fingerprint"),
+                name="evidence_scan_identity_unique",
+            )
+        ]
+
+    def __str__(self):
+        return self.evidence_hash

@@ -189,6 +189,8 @@ def test_organization_scoped_tables_have_required_column_and_forced_rls():
             ("audit_events", True, True, True),
             ("audit_merkle_blocks", True, True, True),
             ("background_jobs", True, True, True),
+            ("detection_evidence", True, True, True),
+            ("discovery_scans", True, True, True),
             ("inventory_import_batches", True, True, True),
             ("inventory_import_rows", True, True, True),
             ("inventory_items", True, True, True),

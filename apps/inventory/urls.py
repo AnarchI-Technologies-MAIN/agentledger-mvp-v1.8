@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .discovery_views import discovery_view
 from .views import (
     archive_inventory_item_action,
     create_inventory_item_view,
@@ -12,6 +13,7 @@ from .views import (
 app_name = "inventory"
 
 urlpatterns = [
+    path("discovery/", discovery_view, name="discovery"),
     path("", inventory_list_view, name="list"),
     path("add/", create_inventory_item_view, name="create"),
     path("<uuid:item_id>/", inventory_detail_view, name="detail"),

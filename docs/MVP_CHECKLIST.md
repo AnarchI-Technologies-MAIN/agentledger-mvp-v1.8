@@ -553,29 +553,31 @@ Required gates:
 
 Required gates:
 
-- [ ] Stewardence defines a versioned deterministic evidence contract.
+- [x] Stewardence defines a versioned deterministic evidence contract.
 
-- [ ] Evidence preserves detector ID/version, observation time, source locator/type, identifier, version/publisher where available, and evidence hash.
+- [x] Evidence preserves detector ID/version, observation time, source locator/type, identifier, version/publisher where available, and evidence hash.
 
-- [ ] Evidence collection excludes passwords, cookies, saved credentials, browser history, and unrelated raw personal files.
+- [x] Evidence collection excludes passwords, cookies, saved credentials, browser history, and unrelated raw personal files.
 
-- [ ] Tenant-scoped discovery/evidence storage has forced PostgreSQL RLS equivalent to existing tenant data protections.
+- [x] Tenant-scoped discovery/evidence storage has forced PostgreSQL RLS equivalent to existing tenant data protections.
 
-- [ ] Repeated evidence ingestion is idempotent.
+- [x] Repeated evidence ingestion is idempotent.
 
-- [ ] Historical evidence is not destructively deleted when absent from a later scan.
+- [x] Historical evidence is not destructively deleted when absent from a later scan.
 
-- [ ] A one-shot Stewardence Collector runs on Windows without requiring a new Railway service/container.
+- [x] A one-shot Stewardence Collector runs on Windows without requiring a new Railway service/container.
 
-- [ ] The MVP Collector includes the minimum useful deterministic Windows/local detector pack.
+- [x] The MVP Collector includes the minimum useful deterministic Windows/local detector pack.
 
-- [ ] Collector decisions are limited to observation/normalization. Risk and policy decisions remain server-side.
+- [x] Collector decisions are limited to observation/normalization. Risk and policy decisions remain server-side.
 
-- [ ] Collector submits/uploads a bounded deterministic evidence bundle to the existing Stewardence web service.
+- [x] Collector submits/uploads a bounded deterministic evidence bundle to the existing Stewardence web service.
 
-- [ ] Ingestion strictly validates supported schema/version/size/hash.
+- [x] Ingestion strictly validates supported schema/version/size/hash.
 
-- [ ] A real Windows scan produces reproducible evidence for at least one supported local source.
+- [x] A real Windows scan produces reproducible evidence for at least one supported local source.
+
+**VERIFIED 2026-09-04 America/Chicago / 2026-09-05 UTC.** Evidence: `docs/COLLECTOR.md`; 19 focused Collector/ingestion/restricted-role tests passed, real Windows scan produced 222 observations, deterministic repeat check passed. Packaging, public artifact delivery, catalog reconciliation, automatic rules and report provenance remain later gates.
 
 ## Phase 19C — deterministic reconciliation and automatic rules
 

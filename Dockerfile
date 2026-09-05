@@ -18,6 +18,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY manage.py ./
 COPY apps ./apps
+COPY collector ./collector
 COPY src ./src
 COPY templates ./templates
 COPY static ./static
